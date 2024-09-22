@@ -3,6 +3,8 @@
 // @namespace http://tampermonkey.net/
 // @version 0.6
 // @description Monitoring__bot
+// @updateURL https://raw.githubusercontent.com/Sselenso/Scripts/main/Monitoring__bot-0.6.user.js
+// @downloadURL https://raw.githubusercontent.com/Sselenso/Scripts/main/Monitoring__bot-0.6.user.js
 // @match https://ai.sknt.ru/monitoring_cc
 // @require https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js
 // @grant GM_xmlhttpRequest
