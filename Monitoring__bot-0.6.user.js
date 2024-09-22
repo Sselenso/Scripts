@@ -76,7 +76,7 @@
                     }
 
                 }
-            } 
+            }
         });
 
         return { specialistsData, totalSpecialists, talkingSpecialists };
@@ -113,7 +113,7 @@
         talkingSpecialists
     };
 
-   /* console.log('JSON to send:', JSON.stringify(data, null, 2));*/
+    /*console.log('JSON to send:', JSON.stringify(data, null, 2));*/
 
     axios.post('https://100.64.3.144:5000/data', data, {
         headers: {
@@ -121,9 +121,9 @@
             'Access-Control-Allow-Origin': '*'
         }
     })
-   /* .then(response => {
+    .then(response => {
         console.log('Server response:', response.data);
-    })*/
+    })
     .catch(error => {
         console.error('Error sending data:', error);
     });
@@ -146,7 +146,7 @@
         const table = document.querySelector('table'); // Основная таблица
         if (table) {
             // Запускаем MutationObserver для отслеживания изменений
-            const observer = new MutationObserver(() => {                
+            const observer = new MutationObserver(() => {
                 processTablesData();
             });
 
