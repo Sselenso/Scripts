@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Мониторинг чатов
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.5
 // @description  Мониторинг чатов
 // @match        https://ai.sknt.ru/monitoring_cc
 // @require      https://unpkg.com/axios/dist/axios.min.js
