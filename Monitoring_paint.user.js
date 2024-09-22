@@ -5,8 +5,8 @@
 // @description  Мониторинг чатов
 // @match        https://ai.sknt.ru/monitoring_cc
 // @require      https://unpkg.com/axios/dist/axios.min.js
-// @updateURL    https://raw.githubusercontent.com/Sselenso/site/main/Monitoring.user.js
-// @downloadURL  https://raw.githubusercontent.com/Sselenso/site/main/Monitoring.user.js
+// @updateURL    https://raw.githubusercontent.com/Sselenso/Scripts/main/Monitoring_paint.user.js
+// @downloadURL  https://raw.githubusercontent.com/Sselenso/Scripts/main/Monitoring_paint.user.js
 // ==/UserScript==
 
 (function() {
