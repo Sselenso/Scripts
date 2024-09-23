@@ -6,6 +6,8 @@
 // @author Sselenso
 // @match https://ai.sknt.ru/*
 // @icon data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
+// @updateURL    https://raw.githubusercontent.com/Sselenso/Scripts/main/Call.user.js
+// @downloadURL  https://raw.githubusercontent.com/Sselenso/Scripts/main/Call.user.js
 // @grant none
 // ==/UserScript==
 
