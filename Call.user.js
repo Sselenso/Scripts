@@ -31,7 +31,7 @@
       testElement.style.color = "#fff";
       testElement.style.fontSize = "14px";
       testElement.style.borderColor = '#8aa0ad';
-      testElement.style.borderRadius = "5px";
+      testElement.style.borderRadius = "4px";
       testElement.style.cursor = "pointer";
       testElement.style.transition = 'background-color 0.3s ease';
 
