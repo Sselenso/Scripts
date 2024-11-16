@@ -7,8 +7,8 @@
 // @match        https://ai.sknt.ru/monitoring_cc
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
 // @grant        none
-// @updateURL    https://raw.githubusercontent.com/Sselenso/Scripts/main/Monitoring_paint.user.js
-// @downloadURL  https://raw.githubusercontent.com/Sselenso/Scripts/main/Monitoring_paint.user.js
+// @updateURL    https://raw.githubusercontent.com/Sselenso/Scripts/main/Monitoring_alert.js
+// @downloadURL  https://raw.githubusercontent.com/Sselenso/Scripts/main/Monitoring_alert.js
 // ==/UserScript==
 
 (function () {
