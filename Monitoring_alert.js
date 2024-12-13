@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Мониторинг алерт и окрашивание чатов
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      3.0
 // @description  Мониторинг алертов и чатов
 // @author       Sselenso
 // @match        https://ai.sknt.ru/monitoring_cc
@@ -15,12 +15,14 @@
 	"use strict";
 
 	const notificationHistory = {};
-	let telegramEnabled = true;
+	let telegramEnabled = false;
 	let conversationTime = 900;
-	let unavailableEnabled = true;
+	let unavailableEnabled = false;
 	let unavailableTime = 30;
-	let disabledEnabled = true;
+	let disabledEnabled = false;
 	let disabledTime = 1200;
+	let soundEnabled = true; // Новый параметр для включения/отключения звукового уведомления
+	let soundPlayed = false; // Флаг для отслеживания воспроизведения звука
 
 	function createModal() {
 		const modalContainer = document.createElement("div");
@@ -146,6 +148,7 @@
 		const unavailableTimeInput = createNumberInput("unavailableTimeInput", 'Время статуса "Недоступен" (секунды)', unavailableTime);
 		const disabledCheckbox = createCheckbox("disabledCheckbox", 'Проверять статус "Выключен"  ', disabledEnabled);
 		const disabledTimeInput = createNumberInput("disabledTimeInput", 'Время статуса "Выключен" (секунды)', disabledTime);
+		const soundCheckbox = createCheckbox("soundCheckbox", 'Включить звуковое уведомление ', soundEnabled); // Новый чекбокс для звукового уведомления
 
 		settingsWindow.appendChild(telegramCheckbox);
 		settingsWindow.appendChild(conversationTimeInput);
@@ -153,6 +156,7 @@
 		settingsWindow.appendChild(unavailableTimeInput);
 		settingsWindow.appendChild(disabledCheckbox);
 		settingsWindow.appendChild(disabledTimeInput);
+		settingsWindow.appendChild(soundCheckbox); // Добавляем новый чекбокс в окно настроек
 
 		const applyButton = document.createElement("button");
 		applyButton.textContent = "Применить";
@@ -237,6 +241,7 @@
 		const unavailableTimeInput = document.getElementById("unavailableTimeInput");
 		const disabledEnabledCheckbox = document.getElementById("disabledCheckbox");
 		const disabledTimeInput = document.getElementById("disabledTimeInput");
+		const soundCheckbox = document.getElementById("soundCheckbox"); // Получаем значение нового чекбокса
 
 		telegramEnabled = telegramEnabledCheckbox.checked;
 		conversationTime = parseInt(conversationTimeInput.value);
@@ -244,6 +249,7 @@
 		unavailableTime = parseInt(unavailableTimeInput.value);
 		disabledEnabled = disabledEnabledCheckbox.checked;
 		disabledTime = parseInt(disabledTimeInput.value);
+		soundEnabled = soundCheckbox.checked; // Обновляем значение нового параметра
 
 		localStorage.setItem("telegramEnabled", telegramEnabled);
 		localStorage.setItem("conversationTime", conversationTime);
@@ -251,6 +257,7 @@
 		localStorage.setItem("unavailableTime", unavailableTime);
 		localStorage.setItem("disabledEnabled", disabledEnabled);
 		localStorage.setItem("disabledTime", disabledTime);
+		localStorage.setItem("soundEnabled", soundEnabled); // Сохраняем значение нового параметра
 
 		const settingsWindow = document.getElementById("settingsWindow");
 		settingsWindow.style.display = "none";
@@ -316,6 +323,10 @@
 		if (telegramEnabled) {
 			sendTelegramNotification(text);
 		}
+		if (soundEnabled && !soundPlayed) { // Проверяем значение нового параметра
+			playSound();
+			soundPlayed = true; // Устанавливаем флаг в true после воспроизведения звука
+		}
 		setTimeout(hideModal, 10000);
 	}
 
@@ -325,7 +336,13 @@
 
 		const modalContainer = document.getElementById("custom-modal");
 		modalContainer.style.display = "none";
+		soundPlayed = false; // Сбрасываем флаг при скрытии модального окна
 	}
+
+    function playSound() {
+        const audio = new Audio("https://www.dropbox.com/scl/fi/exu5d8q0ms2bt7dyrrarg/mixkit-alert-bells-echo-765.wav?rlkey=4o1silnbmgnu14eey8iqyabxp&st=2sc2kq5j&raw=1");
+        audio.play();
+    }
 
 	function checkCellTime() {
 		const rows = document.querySelectorAll("._tableRow_26gbz_1");
@@ -338,7 +355,6 @@
 
 			const cells = row.querySelectorAll("._tableCell_1a192_1");
 			/*console.log("Cells in row:", cells);*/
-
 
 			cells.forEach((cell) => {
 				if (cell.textContent.trim() === "Кантри 1 линия") {
@@ -438,6 +454,7 @@
 		const savedUnavailableTime = localStorage.getItem("unavailableTime");
 		const savedDisabledEnabled = localStorage.getItem("disabledEnabled");
 		const savedDisabledTime = localStorage.getItem("disabledTime");
+		const savedSoundEnabled = localStorage.getItem("soundEnabled"); // Получаем сохраненное значение нового параметра
 
 		if (savedTelegramEnabled !== null) {
 			telegramEnabled = savedTelegramEnabled === "true";
@@ -456,6 +473,9 @@
 		}
 		if (savedDisabledTime !== null) {
 			disabledTime = parseInt(savedDisabledTime);
+		}
+		if (savedSoundEnabled !== null) {
+			soundEnabled = savedSoundEnabled === "true"; // Устанавливаем значение нового параметра
 		}
 
 		setInterval(checkCellTime, 15000);
@@ -496,3 +516,5 @@
 
 	init();
 })();
+
+
