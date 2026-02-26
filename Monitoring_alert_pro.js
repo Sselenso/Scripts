@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Мониторинг алерт и окрашивание чатов Pro 5.5
+// @name         Мониторинг алерт
 // @namespace    http://tampermonkey.net/
 // @version      5.5
-// @description  Мониторинг алертов и чатов с гибридными уведомлениями и журналом событий
+// @description  Мониторинг алерт
 // @author       Sselenso
 // @match        https://ai.sknt.ru/monitoring_cc
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==

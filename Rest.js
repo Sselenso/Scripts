@@ -2,7 +2,7 @@
 // @name         Анализ перерывов с настройкой
 // @namespace    http://tampermonkey.net/
 // @version      3.5
-// @description  Исправлен парсинг названий групп (убираем "Статистика") + логи + светлая тема
+// @description  Анализ перерывов
 // @match        https://ai.sknt.ru/monitoring_cc
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/Sselenso/Scripts/main/Rest.js

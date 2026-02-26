@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Call Timeline Analyzer New 15.12.25
+// @name         Call Timeline Analyzer
 // @namespace    http://tampermonkey.net/
 // @version      0.3
 // @description  Analyze call timelines with agent groups
