@@ -42,8 +42,7 @@
             color: var(--c-white);
             border: none;
             border-radius: var(--app-radius);
-            font-family: var(--app-font);
-            font-size: 14px;
+            font-family: var(--app-font);            
             font-weight: 500;
             cursor: pointer;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
@@ -120,8 +119,7 @@
             width: 100%;
             padding: 10px 12px;
             border: 1px solid var(--app-border);
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 4px;            
             font-family: var(--app-font);
             background: var(--app-bg);
             color: var(--app-text);
@@ -138,7 +136,7 @@
 
         .app-hint {
             margin-top: 4px;
-            font-size: 12px;
+            font-size: 14px;
             color: var(--c-gray-300);
         }
 
@@ -256,7 +254,7 @@
             color: var(--c-white);
             padding: 2px 10px;
             border-radius: 10px;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 500;
         }
 
@@ -296,12 +294,12 @@
         .app-chat-id {
             font-weight: 600;
             color: var(--app-text);
-            font-size: 14px;
+            
         }
 
         .app-time {
             color: var(--app-text-secondary);
-            font-size: 12px;
+            font-size: 14px;
         }
 
         .app-meta {
@@ -316,18 +314,18 @@
             color: var(--c-white);
             padding: 2px 8px;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 500;
         }
 
         .app-rating {
-            font-size: 13px;
+            font-size: 14px;
             color: var(--c-orange-150);
         }
 
         .app-problem {
             margin-top: 6px;
-            font-size: 13px;
+            font-size: 14px;
             color: var(--app-text-secondary);
             line-height: 1.4;
         }
