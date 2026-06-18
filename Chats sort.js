@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      3.2
 // @description  Filter chats by specialist, rating, and problem - Native UI Integration
-// @author       Alice (Sselenso)
+// @author       Sselenso
 // @match       https://ai.sknt.ru/?cat=chats_reports&action=getChatsList&date=*
 // @updateURL    https://raw.githubusercontent.com/Sselenso/Scripts/main/Chats sort.js
 // @downloadURL  https://raw.githubusercontent.com/Sselenso/Scripts/main/Chats sort.js
