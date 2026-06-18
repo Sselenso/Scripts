@@ -11,14 +11,12 @@
 
 (function() {
     'use strict';
-
-    // 1. ИМПОРТ ШРИФТА UBUNTU
+    
     const fontLink = document.createElement('link');
     fontLink.href = 'https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap';
     fontLink.rel = 'stylesheet';
     document.head.appendChild(fontLink);
-
-    // 2. СТИЛИ НА ОСНОВЕ ПАЛИТРЫ САЙТА
+   
     const STYLES = `
         :root {
             /* Используем переменные сайта для идеального слияния */
