@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Выборка чатов 3.0
+// @name         Выборка чатов
 // @namespace    http://tampermonkey.net/
 // @version      3.2
 // @description  Filter chats by specialist, rating, and problem - Native UI Integration
