@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Выборка чатов
 // @namespace    http://tampermonkey.net/
-// @version      3.3
+// @version      3.4
 // @description  Filter chats by specialist, rating, and problem - Native UI Integration
 // @author       Sselenso
 // @match       https://ai.sknt.ru/?cat=chats_reports&action=getChatsList&date=*
@@ -105,6 +105,10 @@
 
         .app-field {
             margin-bottom: 14px;
+						display: flex;
+						align-items: baseline;
+						gap: 5px;
+    				justify-content: space-between;
         }
 
         .app-label {
@@ -116,7 +120,7 @@
 
         .app-input,
         .app-select {
-            width: 100%;
+            width: 80%;
             padding: 10px 12px;
             border: 1px solid var(--app-border);
             border-radius: 4px;            
