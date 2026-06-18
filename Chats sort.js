@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Выборка чатов
 // @namespace    http://tampermonkey.net/
-// @version      3.2
+// @version      3.3
 // @description  Filter chats by specialist, rating, and problem - Native UI Integration
 // @author       Sselenso
 // @match       https://ai.sknt.ru/?cat=chats_reports&action=getChatsList&date=*
