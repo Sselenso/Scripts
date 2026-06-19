@@ -18,8 +18,7 @@
     document.head.appendChild(fontLink);
    
     const STYLES = `
-        :root {
-            /* Используем переменные сайта для идеального слияния */
+        :root {           
             --app-primary: var(--c-green-100);       /* #5cb85c */
             --app-primary-dark: var(--c-green-400);  /* #4cae4c */
             --app-bg: var(--c-white);                /* #fff */
@@ -31,7 +30,6 @@
             --app-radius: 6px;
             --app-font: 'Ubuntu', sans-serif;
         }
-
 
 				::-webkit-scrollbar {
 					width: 8px !important;
