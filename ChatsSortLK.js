@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Выборка чатов 7.4
+// @name         Выборка чатов и лк
 // @namespace    http://tampermonkey.net/
-// @version      7.4
+// @version      7.5
 // @description  Filter chats with period-based storage - SPA compatible with fixed cabinet
 // @author       Sselenso
 // @match        https://ai.sknt.ru/*
@@ -1360,7 +1360,7 @@
                                     <span class="tooltip-chat">Чат #${chat.id}</span>
                                     <span class="tooltip-date">📅 ${formatDate(new Date(chat.date))}</span>
                                     <span class="tooltip-status ${statusClass}">${statusLabel}</span>
-                                    <span class="tooltip-rating">⭐ ${ratingDisplay}</span>
+                                    <span class="tooltip-rating">${ratingDisplay}</span>
                                 </div>
                             `;
                         }
