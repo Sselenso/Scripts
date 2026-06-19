@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Выборка чатов и лк
 // @namespace    http://tampermonkey.net/
-// @version      7.5
+// @version      7.6
 // @description  Filter chats with period-based storage - SPA compatible with fixed cabinet
 // @author       Sselenso
 // @match        https://ai.sknt.ru/*
@@ -630,7 +630,7 @@
                 color: var(--c-orange-150);
                 padding: 2px 8px;
                 border-radius: 4px;
-
+								text-align: center;
             }
 
             .tooltip-status.checked {
