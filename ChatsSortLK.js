@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Выборка чатов и лк
 // @namespace    http://tampermonkey.net/
-// @version      7.6
+// @version      7.7
 // @description  Filter chats with period-based storage - SPA compatible with fixed cabinet
 // @author       Sselenso
 // @match        https://ai.sknt.ru/*
@@ -37,8 +37,7 @@
     function initializeScript() {
         if (initialized) return;
 
-        if (isTargetPage()) {
-            console.log('✅ Обнаружена страница чатов, инициализация...');
+        if (isTargetPage()) {            
             initialized = true;
             initFilterSystem();
         }
@@ -758,9 +757,7 @@
                             periodStates[chatId] = record;
                         }
                     }
-                }
-
-                console.log(`📂 Загружено ${Object.keys(periodStates).length} записей из localStorage за период`);
+                }                
                 return periodStates;
             } catch (e) {
                 console.warn('Ошибка загрузки:', e);
@@ -796,8 +793,7 @@
                     }
                 }
 
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(allStates));
-                console.log(`💾 Сохранено ${Object.keys(allStates).length} записей в localStorage`);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(allStates));                
             } catch (e) {
                 console.warn('Не удалось сохранить состояние:', e);
             }
@@ -807,9 +803,7 @@
         function clearAllData() {
             if (confirm('Вы уверены, что хотите очистить все данные о проверках за текущий период?')) {
                 localStorage.removeItem(STORAGE_KEY);
-                chatStates = {};
-                console.log('🗑️ Все данные очищены');
-                // Обновляем ЛК если он открыт
+                chatStates = {};                
                 const cabinetModal = document.querySelector('.app-modal .app-header-cabinet');
                 if (cabinetModal) {
                     const modal = cabinetModal.closest('.app-modal');
@@ -827,8 +821,7 @@
             const chatDate = getChatDateFromURL();
 
             if (current === status) {
-                delete chatStates[chatId];
-                console.log(`🗑️ Снят статус "${status}" с чата ${chatId}`);
+                delete chatStates[chatId];                
             } else {
                 const chatData = CACHE.chatData.get(chatId);
                 chatStates[chatId] = {
@@ -839,8 +832,7 @@
                     rating: chatData?.rating || null,
                     problem: chatData?.problem || '',
                     tags: chatData?.tags || ''
-                };
-                console.log(`✅ Установлен статус "${status}" для чата ${chatId} (чат от ${chatDate})`);
+                };                
             }
 
             saveChatStates(chatStates);
@@ -1667,8 +1659,7 @@
             modal.style.display = 'flex';
             lockScroll();
 
-            chatStates = loadChatStates();
-            console.log(`📂 Загружено ${Object.keys(chatStates).length} записей из localStorage`);
+            chatStates = loadChatStates();            
 
             CACHE.rows = null;
             CACHE.chatData.clear();
@@ -1739,9 +1730,7 @@
         document.getElementById('problemFilter').addEventListener('change', handleFilterChange);
 
         // === ИНИЦИАЛИЗАЦИЯ ===
-        chatStates = loadChatStates();
-        console.log('✅ Скрипт фильтрации чатов загружен (v7.2)');
-        console.log(`📊 В хранилище ${Object.keys(chatStates).length} записей за текущий период`);
+        chatStates = loadChatStates();        
     }
 
     // Запускаем наблюдатель
