@@ -1,13 +1,14 @@
 // ==UserScript==
-// @name         Выборка чатов 7.2
+// @name         Выборка чатов 7.4
 // @namespace    http://tampermonkey.net/
-// @version      7.
+// @version      7.4
 // @description  Filter chats with period-based storage - SPA compatible with fixed cabinet
 // @author       Sselenso
-// @match       https://ai.sknt.ru/*
+// @match        https://ai.sknt.ru/*
 // @updateURL    https://raw.githubusercontent.com/Sselenso/Scripts/main/ChatsSortLK.js
 // @downloadURL  https://raw.githubusercontent.com/Sselenso/Scripts/main/ChatsSortLK.js
 // ==/UserScript==
+
 
 (function() {
     'use strict';
