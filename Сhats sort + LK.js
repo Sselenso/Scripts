@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Выборка чатов оптимизация
+// @name         Выборка чатов оптимизация и категории
 // @namespace    http://tampermonkey.net/
-// @version      6.4
+// @version      6.7
 // @description  Filter chats with period-based storage (Wednesday-Tuesday) with toggle - FIXED
 // @author       Sselenso
 // @match       https://ai.sknt.ru/?cat=chats_reports&action=getChatsList&date=*
@@ -186,6 +186,8 @@
         .app-btn-primary:hover { background: var(--app-primary-dark); }
         .app-btn-secondary { background: transparent; color: var(--app-text-secondary); border: 1px solid var(--app-border); }
         .app-btn-secondary:hover { background: var(--c-gray-30); color: var(--app-text); }
+        .app-btn-danger { background: #d9534f; color: white; }
+        .app-btn-danger:hover { background: #c9302c; }
 
         .app-results {
             display: none;
@@ -277,7 +279,19 @@
             font-weight: 500;
         }
 
-        .app-rating { font-size: 14px; color: var(--c-orange-150); }
+        .app-rating {
+         min-width: 80px;
+    font-size: 14px;
+    background: #fcdcae;
+    color: var(--c-orange-150);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+
+
+        }
         .app-problem { margin-top: 6px; font-size: 14px; color: var(--app-text-secondary); line-height: 1.4; }
         .app-problem strong { color: var(--app-text); }
         .app-empty { text-align: center; padding: 30px; color: var(--app-text-secondary); font-size: 14px; }
@@ -301,12 +315,13 @@
             background: transparent;
             display: flex;
             align-items: center;
+            justify-content: center;
+            min-width: 100px;
             gap: 4px;
             font-family: var(--app-font);
             font-weight: 500;
         }
 
-        .app-card-btn:hover { transform: scale(1.05); }
         .app-card-btn.btn-check { color: #5cb85c; background: #eaf7ea; }
         .app-card-btn.btn-check:hover { background: #d0edc9; }
         .app-card-btn.btn-check.active { background: #5cb85c; color: white; }
@@ -314,17 +329,6 @@
         .app-card-btn.btn-trash:hover { background: #f5d6d4; }
         .app-card-btn.btn-trash.active { background: #d9534f; color: white; }
         .app-card-btn .btn-label { font-size: 12px; }
-
-        .app-mark-status {
-            font-size: 12px;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-weight: 500;
-        }
-
-        .app-mark-status.status-checked { background: #5cb85c; color: white; }
-        .app-mark-status.status-rejected { background: #d9534f; color: white; }
-        .app-mark-status.status-none { background: var(--c-gray-30); color: var(--app-text-secondary); }
 
         .cabinet-period {
             font-size: 16px;
@@ -394,6 +398,16 @@
         .cabinet-total-item .total-label { color: var(--app-text-secondary); }
         .cabinet-total-item .total-value { font-weight: 600; }
         .cabinet-empty { text-align: center; padding: 40px; color: var(--app-text-secondary); font-size: 15px; }
+
+        .app-status-badge {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .app-status-badge.checked { background: #5cb85c; color: white; }
+        .app-status-badge.rejected { background: #d9534f; color: white; }
+        .app-status-badge.none { background: var(--c-gray-30); color: var(--app-text-secondary); }
     `;
 
     const styleSheet = document.createElement('style');
@@ -420,6 +434,25 @@
     let chatStates = {};
     let isFiltering = false;
     let isModalOpen = false;
+
+    // === НОВЫЙ СПИСОК КАТЕГОРИЙ ПРОБЛЕМ ===
+    const PROBLEM_CATEGORIES = [
+        { value: 'all', label: 'Все проблемы' },
+        { value: 'bez_voprosa', label: 'без вопроса' },
+        { value: 'globalka', label: 'глобалка' },
+        { value: 'internet_problems', label: 'интернет проблемы' },
+        { value: 'lichny_kabinet', label: 'личный кабинет' },
+        { value: 'massovoe_uvedomlenie', label: 'массовое уведомление' },
+        { value: 'musor', label: 'мусор' },
+        { value: 'neopredelennye', label: 'неопределеные запросы' },
+        { value: 'oborudovanie', label: 'оборудование' },
+        { value: 'otkaz', label: 'отказ от пользования' },
+        { value: 'pereezd', label: 'переезд' },
+        { value: 'podklyuchenie', label: 'подключение' },
+        { value: 'tv_problems', label: 'проблеммы с ТВ' },
+        { value: 'smena_usloviy', label: 'смена условий' },
+        { value: 'finansy', label: 'финаннсы и платежи' }
+    ];
 
     // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
     function getTodayDate() {
@@ -469,13 +502,17 @@
             const periodStates = {};
 
             for (const [chatId, record] of Object.entries(allStates)) {
-                if (record.date && isDateInPeriod(record.date, weekStart, weekEnd)) {
-                    periodStates[chatId] = record;
+                if (record && record.date && isDateInPeriod(record.date, weekStart, weekEnd)) {
+                    if (record.status && record.status !== 'none') {
+                        periodStates[chatId] = record;
+                    }
                 }
             }
 
+            console.log(`📂 Загружено ${Object.keys(periodStates).length} активных записей из localStorage`);
             return periodStates;
         } catch (e) {
+            console.warn('Ошибка загрузки:', e);
             return {};
         }
     }
@@ -487,7 +524,7 @@
             const today = getTodayDate();
 
             for (const [chatId, record] of Object.entries(states)) {
-                if (record.status === 'none') {
+                if (!record || record.status === 'none' || !record.status) {
                     delete allStates[chatId];
                 } else {
                     allStates[chatId] = {
@@ -497,8 +534,49 @@
                 }
             }
 
+            for (const [chatId] of Object.entries(allStates)) {
+                if (!states[chatId] || states[chatId].status === 'none') {
+                    delete allStates[chatId];
+                }
+            }
+
             localStorage.setItem(STORAGE_KEY, JSON.stringify(allStates));
-        } catch (e) {}
+            console.log(`💾 Сохранено ${Object.keys(allStates).length} записей в localStorage`);
+        } catch (e) {
+            console.warn('Не удалось сохранить состояние:', e);
+        }
+    }
+
+    // === ПЕРЕКЛЮЧЕНИЕ СТАТУСА ===
+    function toggleChatState(chatId, status) {
+        const current = chatStates[chatId]?.status || 'none';
+
+        if (current === status) {
+            delete chatStates[chatId];
+            console.log(`🗑️ Снят статус "${status}" с чата ${chatId}`);
+        } else {
+            chatStates[chatId] = {
+                status: status,
+                date: getTodayDate()
+            };
+            console.log(`✅ Установлен статус "${status}" для чата ${chatId}`);
+        }
+
+        saveChatStates(chatStates);
+
+        const chatData = CACHE.chatData.get(chatId);
+        if (chatData) {
+            chatData.state = chatStates[chatId]?.status || 'none';
+        }
+
+        for (const chat of CACHE.currentChats) {
+            if (chat.id === chatId) {
+                chat.state = chatStates[chatId]?.status || 'none';
+                break;
+            }
+        }
+
+        CACHE.currentHash = generateHash(CACHE.currentChats);
     }
 
     // === ПАРСИНГ ===
@@ -612,7 +690,7 @@
                 id: chatId,
                 time: cells[2]?.textContent.trim() || 'N/A',
                 problem: cells[8]?.textContent.trim() || '',
-                tags: cells[9]?.textContent.trim() || 'N/A',
+                tags: cells[9]?.textContent.trim() || 'нет тега',
                 specialists: uniqueSpecialists,
                 rating: getChatRating(cells),
                 link: row.querySelector('td:first-child a')?.href || '#',
@@ -642,9 +720,8 @@
         }
 
         const statusMap = {
-            'checked': '<span class="app-mark-status status-checked">Проверен</span>',
-            'rejected': '<span class="app-mark-status status-rejected">Отклонен</span>',
-
+            'checked': '<span class="app-status-badge checked">Проверен</span>',
+            'rejected': '<span class="app-status-badge rejected">Отклонен</span>',
         };
 
         return `
@@ -652,7 +729,6 @@
                 <div>
                     <span class="app-chat-id">#${chat.id}</span>
                     <span class="app-time"> • ${chat.time}</span>
-                    ${statusMap[state] || statusMap.none}
                 </div>
                 <div class="app-meta">
                     <span class="app-tag">${specialistNames}</span>
@@ -675,30 +751,6 @@
                 </span>
             </div>
         `;
-    }
-
-    // === ПЕРЕКЛЮЧЕНИЕ СТАТУСА ===
-    function toggleChatState(chatId, status) {
-        const current = chatStates[chatId]?.status || 'none';
-
-        if (current === status) {
-            delete chatStates[chatId];
-        } else {
-            chatStates[chatId] = {
-                status: status,
-                date: getTodayDate()
-            };
-        }
-
-        saveChatStates(chatStates);
-
-        // Обновляем кэш
-        const chatData = CACHE.chatData.get(chatId);
-        if (chatData) {
-            chatData.state = chatStates[chatId]?.status || 'none';
-        }
-
-        CACHE.currentHash = generateHash(CACHE.currentChats);
     }
 
     // === ОБНОВЛЕНИЕ СТАТИСТИКИ ===
@@ -755,7 +807,7 @@
         }
     }
 
-    // === РЕНДЕРИНГ СПИСКА ===
+    // === РЕНДЕРИНГ СПИСКА (ИСПРАВЛЕННЫЙ) ===
     function renderResults(chats) {
         const resultsList = CACHE.resultsList;
         const resultsContainer = CACHE.resultsContainer;
@@ -771,17 +823,17 @@
 
         const newHash = generateHash(chats);
 
-        if (newHash === CACHE.currentHash && resultsList.querySelector('.app-card')) {
-            updateStats();
-            return;
-        }
-
-        CACHE.currentHash = newHash;
+        // Всегда очищаем список перед отображением
+        resultsList.innerHTML = '';
 
         if (chats.length === 0) {
             resultsList.innerHTML = '<p class="app-empty">Чатов не найдено</p>';
             resultsContainer.style.display = 'flex';
-            if (statsContainer) statsContainer.style.display = 'none';
+            if (statsContainer) {
+                statsContainer.style.display = 'none';
+            }
+            CACHE.currentHash = newHash;
+            updateStats();
             return;
         }
 
@@ -800,6 +852,7 @@
 
         resultsList.innerHTML = html;
         resultsContainer.style.display = 'flex';
+        CACHE.currentHash = newHash;
         updateStats();
     }
 
@@ -863,27 +916,28 @@
         }, 10);
     }
 
-    // === ПРОВЕРКА ПРОБЛЕМЫ ===
+    // === ПРОВЕРКА ПРОБЛЕМЫ (ОБНОВЛЕННАЯ) ===
     function matchesProblem(problemText, problemFilter) {
         if (problemFilter === 'all') return true;
         const problem = problemText.toLowerCase();
+
         const filterMap = {
-            'wifi': ['wifi', 'wi-fi', 'беспроводной'],
-            'speed': ['скорость', 'speed'],
-            'connection': ['интернет проблемы', 'проблемы интернет', 'интернет'],
-            'router': ['роутер', 'маршрутизатор', 'router'],
-            'reboot': ['ребут', 'перезагрузк', 'reboot'],
-            'repair': ['ремонт', 'repair'],
-            'payment': ['финансы', 'платеж', 'оплат', 'payment'],
-            'refusal': ['отказ', 'refusal'],
-            'freeze': ['заморозк', 'freeze'],
-            'tariff': ['тариф', 'tariff'],
-            'equipment': ['оборудование', 'equipment'],
-            'connection_issue': ['подключение', 'connection'],
-            'undefined': ['неопределен', 'undefined'],
-            'conditions': ['смена условий', 'условий'],
-            'lag': ['лагает', 'тормозит', 'lag']
+            'bez_voprosa': ['без вопроса', 'безвопрос'],
+            'globalka': ['глобалка', 'глобальная', 'глобальный'],
+            'internet_problems': ['интернет проблемы', 'интернет', 'нет интернета', 'проблемы интернет', 'интернет не работает', 'связь', 'net'],
+            'lichny_kabinet': ['личный кабинет', 'лк', 'кабинет', 'личный'],
+            'massovoe_uvedomlenie': ['массовое уведомление', 'массовое', 'уведомление', 'рассылка'],
+            'musor': ['мусор', 'спам', 'не нужное'],
+            'neopredelennye': ['неопределен', 'непонятн', 'неясн'],
+            'oborudovanie': ['оборудование', 'роутер', 'маршрутизатор', 'модем', 'router', 'оборуд'],
+            'otkaz': ['отказ от пользования', 'отказ', 'расторжение', 'закрытие'],
+            'pereezd': ['переезд', 'переехать'],
+            'podklyuchenie': ['подключение', 'подключить', 'активация', 'новый абонент'],
+            'tv_problems': ['проблеммы с тв', 'тв', 'телевидение', 'iptv', 'tv', 'телеканалы'],
+            'smena_usloviy': ['смена условий', 'условия', 'тариф', 'изменение'],
+            'finansy': ['финаннсы и платежи', 'финансы', 'платеж', 'оплат', 'деньги', 'баланс', 'задолженность', 'долг']
         };
+
         const keywords = filterMap[problemFilter] || [];
         return keywords.some(keyword => problem.includes(keyword));
     }
@@ -940,6 +994,13 @@
 
     document.body.appendChild(buttonGroup);
 
+    // === СОЗДАНИЕ OPTIONS ДЛЯ SELECT ===
+    function createProblemOptions() {
+        return PROBLEM_CATEGORIES.map(cat =>
+            `<option value="${cat.value}">${cat.label}</option>`
+        ).join('');
+    }
+
     // === МОДАЛЬНОЕ ОКНО ===
     const modal = document.createElement('div');
     modal.className = 'app-modal';
@@ -949,7 +1010,7 @@
         <div class="app-modal-content">
             <div class="app-header">
                 <span>Фильтр чатов</span>
-                <button id="closeFilterBtn" class="app-btn" style="background:rgba(255,255,255,0.2);color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;">✕</button>
+                <button id="closeFilterBtn" class="app-btn app-btn-danger" style="padding:4px 12px;border-radius:4px;cursor:pointer;font-size:16px;">✕</button>
             </div>
             <div class="app-body">
                 <div class="app-field">
@@ -977,22 +1038,7 @@
                 <div class="app-field">
                     <label class="app-label">Проблема</label>
                     <select id="problemFilter" class="app-select">
-                        <option value="all">Все проблемы</option>
-                        <option value="wifi">WiFi</option>
-                        <option value="speed">Скорость</option>
-                        <option value="connection">Интернет проблемы</option>
-                        <option value="router">Роутер</option>
-                        <option value="reboot">Ребут</option>
-                        <option value="repair">Ремонт</option>
-                        <option value="payment">Финансы и платежи</option>
-                        <option value="refusal">Отказ от пользования</option>
-                        <option value="freeze">Заморозка</option>
-                        <option value="tariff">Тариф</option>
-                        <option value="equipment">Оборудование</option>
-                        <option value="connection_issue">Подключение</option>
-                        <option value="undefined">Неопределенные запросы</option>
-                        <option value="conditions">Смена условий</option>
-                        <option value="lag">Лагает ресурс</option>
+                        ${createProblemOptions()}
                     </select>
                 </div>
                 <div id="resultsContainer" class="app-results">
@@ -1006,8 +1052,7 @@
             </div>
             <div class="app-actions">
                 <button id="clearFilterBtn" class="app-btn app-btn-secondary">Очистить</button>
-                <button id="closeFilterBtn2" class="app-btn app-btn-secondary">Закрыть</button>
-                <button id="applyFilterBtn" class="app-btn app-btn-primary">Применить</button>
+                <button id="closeFilterBtn2" class="app-btn app-btn-danger">Закрыть</button>
             </div>
         </div>
     `;
@@ -1040,16 +1085,15 @@
         modal.style.display = 'flex';
         lockScroll();
 
-        if (Object.keys(chatStates).length === 0) {
-            chatStates = loadChatStates();
-        }
+        chatStates = loadChatStates();
+        console.log(`📂 Загружено ${Object.keys(chatStates).length} записей из localStorage`);
 
         CACHE.rows = null;
         CACHE.chatData.clear();
         CACHE.currentHash = '';
+        CACHE.currentChats = [];
 
         applyFilter();
-        // Устанавливаем обработчик после рендеринга
         setTimeout(setupClickHandler, 50);
     }
 
@@ -1069,12 +1113,6 @@
         if (e.key === 'Escape' && modal.style.display === 'flex') {
             closeFilter();
         }
-    });
-
-    document.getElementById('applyFilterBtn').addEventListener('click', () => {
-        CACHE.currentHash = '';
-        applyFilter();
-        setTimeout(setupClickHandler, 50);
     });
 
     document.getElementById('clearFilterBtn').addEventListener('click', () => {
@@ -1256,13 +1294,13 @@
             <div class="app-modal-content">
                 <div class="app-header app-header-cabinet">
                     <span>📊 Личный кабинет</span>
-                    <button id="closeCabinetBtn" class="app-btn" style="background:rgba(255,255,255,0.2);color:white;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;">✕</button>
+                    <button id="closeCabinetBtn" class="app-btn app-btn-danger" style="padding:4px 12px;border-radius:4px;cursor:pointer;font-size:16px;">✕</button>
                 </div>
                 <div class="app-body">
                     ${html}
                 </div>
                 <div class="app-actions">
-                    <button id="closeCabinetBtn2" class="app-btn app-btn-secondary">Закрыть</button>
+                    <button id="closeCabinetBtn2" class="app-btn app-btn-danger">Закрыть</button>
                 </div>
             </div>
         `;
@@ -1288,6 +1326,9 @@
     }
 
     // === ИНИЦИАЛИЗАЦИЯ ===
-    chatStates = loadChatStates();   
+    chatStates = loadChatStates();
+    console.log('✅ Скрипт фильтрации чатов загружен (v6.7)');
+    console.log(`📊 В хранилище ${Object.keys(chatStates).length} записей за текущий период`);
+    console.log('📋 Список категорий обновлен');
 
 })();
