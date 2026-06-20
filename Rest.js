@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Анализ перерывов новая логика 
+// @name         Анализ перерывов новая логика
 // @namespace    http://tampermonkey.net/
-// @version      5.8
-// @description  Исправлены цвета и убрана лишняя информация
+// @version      6.0
+// @description  Исправлены цвета и убрана лишняя информация + улучшенный поиск текста
 // @match        https://ai.sknt.ru/monitoring_cc
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/Sselenso/Scripts/main/Rest.js
@@ -11,8 +11,6 @@
 
 (function() {
     'use strict';
-
-
 
     // ========== СТИЛИ ==========
     const STYLES = `
@@ -113,7 +111,7 @@
             background: #2196F3;
             color: #fff;
             padding: 4px 12px;
-            border-radius: 4px;           
+            border-radius: 4px;
             font-weight: 600;
         }
 
@@ -128,12 +126,12 @@
         }
 
         .break-stat-item {
-            text-align: center;            
+            text-align: center;
             color: var(--color-text-secondary, #616161);
         }
 
         .break-stat-value {
-            font-weight: 600;            
+            font-weight: 600;
             color: var(--color-text-primary, #212121);
         }
 
@@ -156,17 +154,19 @@
 
         .break-action-optimal {
             background: #bbf7d0;
+						color: #2E7D32;
+						border-color: #2E7D32;;
         }
 
         .break-action-warning {
             background: #FF9800;
-            color: #fff;
+            color: #F57C00;
             border: 1px solid #F57C00;
         }
 
         .break-action-danger {
             background: #F44336;
-            color: #fff;
+            color: #D32F2F;
             border: 1px solid #D32F2F;
         }
 
@@ -483,11 +483,33 @@
     let panelWrapper = null;
     let panel = null;
 
-    // ========== ПРОВЕРКА СТРАНИЦЫ ==========
+    // ========== УЛУЧШЕННАЯ ФУНКЦИЯ ПРОВЕРКИ СТРАНИЦЫ ==========
     function isTargetPage() {
-        const containers = document.querySelectorAll('.grid.gap-4.w-1\\/2');
-        const hasTables = document.querySelectorAll('table._table_g86u9_1').length >= 2;
-        return containers.length >= 2 && hasTables;
+        // Получаем весь текст страницы
+        const bodyText = document.body?.innerText || '';
+        const htmlText = document.documentElement?.innerText || '';
+
+        // Варианты текста для поиска (с учетом разных пробелов и переносов)
+        const searchPatterns = [
+            'Мониторинг КЦ Статистика входящих звонков Вся статистика',
+            'Мониторинг КЦ Статистика входящих звонков',
+            'Статистика входящих звонков Вся статистика',
+            'Мониторинг КЦ'
+        ];
+
+        // Проверяем наличие любого из паттернов
+        for (const pattern of searchPatterns) {
+            // Убираем лишние пробелы для сравнения
+            const normalizedBody = bodyText.replace(/\s+/g, ' ').trim();
+            const normalizedHtml = htmlText.replace(/\s+/g, ' ').trim();
+            const normalizedPattern = pattern.replace(/\s+/g, ' ').trim();
+
+            if (normalizedBody.includes(normalizedPattern) || normalizedHtml.includes(normalizedPattern)) {                
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ========== ПОИСК КОНТЕЙНЕРА ДЛЯ ВСТАВКИ ==========
@@ -555,7 +577,6 @@
     function parseData() {
         const tables = document.querySelectorAll('table._table_g86u9_1');
 
-
         if (tables.length < 2) {
             return null;
         }
@@ -572,7 +593,6 @@
                 const queueRaw = cells[1].innerText.trim();
                 const queue = parseInt(queueRaw, 10);
 
-
                 if (name && !isNaN(queue)) {
                     groupMetrics[name] = { queue };
                 } else {
@@ -580,7 +600,6 @@
                 }
             }
         });
-
 
         const groups = {};
         let currentGroup = null;
@@ -593,17 +612,13 @@
                     .replace(/\s*Статистика\s*/g, '')
                     .trim();
 
-
-
                 if (currentGroup.includes('Статистика')) {
-
                     currentGroup = null;
                     return;
                 }
 
                 if (!groups[currentGroup]) {
                     groups[currentGroup] = { total: 0, freeReady: 0, freeShort: 0, busy: 0, offline: 0, ringing: 0 };
-
                 }
                 return;
             }
@@ -676,10 +691,8 @@
             const freeReady = data.freeReady;
             const offline = data.offline;
 
-            // Определяем "реальную" очередь
             let effectiveQueue = queue;
 
-            // Если есть свободные операторы и очередь небольшая - игнорируем её
             if (freeReady > 0 && queue <= ignoreQueueIfFree) {
                 effectiveQueue = 0;
             }
@@ -690,8 +703,6 @@
             let actionClass = '';
             let queueRange = '';
 
-
-
             if (effectiveQueue === 0) {
                 canRelease = Math.max(0, freeReady - reserveForQueue);
                 queueRange = '0';
@@ -699,13 +710,11 @@
 
                 if (canRelease > 0) {
                     action = `🔺 Можно отпустить ${canRelease}`;
-                    actionClass = 'break-action-optimal'; // ЗЕЛЕНЫЙ - можно отпускать
+                    actionClass = 'break-action-optimal';
                 } else {
-                   action = '✅ Оптимально';
+                    action = '✅ Оптимально';
                     actionClass = 'break-action-optimal';
                 }
-
-
 
             } else if (effectiveQueue >= 1 && effectiveQueue <= 5) {
                 maxAllowed = maxBreakQueue1to5;
@@ -717,15 +726,15 @@
                 } else if (offline < maxAllowed) {
                     const need = maxAllowed - offline;
                     action = `🔺 Отпустить ${need} (до ${maxAllowed})`;
-                    actionClass = 'break-action-optimal'; // ЗЕЛЕНЫЙ - можно отпускать
+                    actionClass = 'break-action-optimal';
                 } else {
                     const excess = offline - maxAllowed;
                     if (excess <= 2) {
                         action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
-                        actionClass = 'break-action-warning'; // ОРАНЖЕВЫЙ - немного вернуть
+                        actionClass = 'break-action-warning';
                     } else {
                         action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
-                        actionClass = 'break-action-danger'; // КРАСНЫЙ - много вернуть
+                        actionClass = 'break-action-danger';
                     }
                 }
 
@@ -739,18 +748,17 @@
                 } else if (offline < maxAllowed) {
                     const need = maxAllowed - offline;
                     action = `🔺 Отпустить ${need} (до ${maxAllowed})`;
-                    actionClass = 'break-action-optimal'; // ЗЕЛЕНЫЙ - можно отпускать
+                    actionClass = 'break-action-optimal';
                 } else {
                     const excess = offline - maxAllowed;
                     if (excess <= 2) {
                         action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
-                        actionClass = 'break-action-warning'; // ОРАНЖЕВЫЙ - немного вернуть
+                        actionClass = 'break-action-warning';
                     } else {
                         action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
-                        actionClass = 'break-action-danger'; // КРАСНЫЙ - много вернуть
+                        actionClass = 'break-action-danger';
                     }
                 }
-
 
             } else {
                 maxAllowed = maxBreakQueue10plus;
@@ -762,15 +770,15 @@
                 } else if (offline < maxAllowed) {
                     const need = maxAllowed - offline;
                     action = `🔺 Отпустить ${need} (до ${maxAllowed})`;
-                    actionClass = 'break-action-optimal'; // ЗЕЛЕНЫЙ - можно отпускать
+                    actionClass = 'break-action-optimal';
                 } else {
                     const excess = offline - maxAllowed;
                     if (excess <= 2) {
                         action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
-                        actionClass = 'break-action-warning'; // ОРАНЖЕВЫЙ - немного вернуть
+                        actionClass = 'break-action-warning';
                     } else {
                         action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
-                        actionClass = 'break-action-danger'; // КРАСНЫЙ - много вернуть
+                        actionClass = 'break-action-danger';
                     }
                 }
             }
@@ -800,111 +808,91 @@
         return result;
     }
 
-
-// ========== ОТРИСОВКА ПАНЕЛИ ==========
-function renderPanel(analysis) {
-    if (!analysis || !panel) {
-        if (panel) {
-            panel.innerHTML = `<div class="break-error">❌ Нет данных для анализа</div>`;
-        }
-        return;
-    }
-
-    const timeStr = new Date(analysis.timestamp).toLocaleTimeString('ru-RU');
-
-    let html = `
-        <div class="break-panel-header">
-            <span class="break-panel-title">Анализ перерывов</span>
-            <div class="break-panel-controls">
-                <span class="break-timestamp">🔄 ${timeStr}</span>
-                <span id="settings-button" class="break-settings-btn" title="Настройки">⚙️</span>
-            </div>
-        </div>
-        <div class="break-grid">
-    `;
-
-    for (const [name, g] of Object.entries(analysis.groups)) {
-        // Определяем класс подсветки по реальной очереди (для отображения)
-        let cardClass = 'break-card break-card-queue-0';
-        if (g.queue >= 10) {
-            cardClass = 'break-card break-card-queue-10';
-        } else if (g.queue >= 5) {
-            cardClass = 'break-card break-card-queue-5';
-        }
-
-        // Текст для badge - только очередь и итоговое количество в перерыве
-        let rangeText = '';
-        if (g.effectiveQueue === 0) {
-            rangeText = `Оч: 0`;
-        } else if (g.effectiveQueue >= 1 && g.effectiveQueue <= 5) {
-            rangeText = `Оч: 1-5`;
-        } else if (g.effectiveQueue >= 6 && g.effectiveQueue <= 10) {
-            rangeText = `Оч: 6-10`;
-        } else {
-            rangeText = `Оч: 10+`;
-        }
-
-        // Итоговое количество в перерыве:
-        let targetText;
-        if (g.effectiveQueue === 0) {
-            if (g.canRelease > 0) {
-                // Если можно отпустить - показываем сколько будет всего
-                targetText = g.offline + g.canRelease;
-            } else {
-                // Если нельзя отпустить - показываем целевое значение из правил для очереди 1-5
-                targetText = CONFIG.maxBreakQueue1to5;
+    // ========== ОТРИСОВКА ПАНЕЛИ ==========
+    function renderPanel(analysis) {
+        if (!analysis || !panel) {
+            if (panel) {
+                panel.innerHTML = `<div class="break-error">❌ Нет данных для анализа</div>`;
             }
-        } else {
-            targetText = g.maxAllowed;
+            return;
         }
+
+        const timeStr = new Date(analysis.timestamp).toLocaleTimeString('ru-RU');
+
+        let html = `
+            <div class="break-panel-header">
+                <span class="break-panel-title">Анализ перерывов</span>
+                <div class="break-panel-controls">
+                    <span class="break-timestamp">🔄 ${timeStr}</span>
+                    <span id="settings-button" class="break-settings-btn" title="Настройки">⚙️</span>
+                </div>
+            </div>
+            <div class="break-grid">
+        `;
+
+        for (const [name, g] of Object.entries(analysis.groups)) {
+            let cardClass = 'break-card break-card-queue-0';
+            if (g.queue >= 10) {
+                cardClass = 'break-card break-card-queue-10';
+            } else if (g.queue >= 5) {
+                cardClass = 'break-card break-card-queue-5';
+            }
+
+            let targetText;
+            if (g.effectiveQueue === 0) {
+                if (g.canRelease > 0) {
+                    targetText = g.offline + g.canRelease;
+                } else {
+                    targetText = CONFIG.maxBreakQueue1to5;
+                }
+            } else {
+                targetText = g.maxAllowed;
+            }
+
+            html += `
+                <div class="${cardClass}">
+                    <div class="break-card-header">
+                        <span class="break-card-name">${name}</span>
+                        <span class="break-card-badge">🎯 ${targetText}</span>
+                    </div>
+                    <div class="break-stats">
+                        <div class="break-stat-item">
+                            <div class="break-stat-value">${g.queue}</div>
+                            Очередь
+                        </div>
+                        <div class="break-stat-item">
+                            <div class="break-stat-value break-stat-value-green">${g.freeReady}</div>
+                            Свободны
+                        </div>
+                        <div class="break-stat-item">
+                            <div class="break-stat-value break-stat-value-red">${g.offline}</div>
+                            Перерыв
+                        </div>
+                    </div>
+                    <div class="break-action ${g.actionClass}">
+                        <span class="break-action-text">${g.action}</span>
+                        <span class="break-action-sub">${g.busy} в работе</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `</div>`;
 
         html += `
-            <div class="${cardClass}">
-                <div class="break-card-header">
-                    <span class="break-card-name">${name}</span>
-                    <span class="break-card-badge">🎯 ${targetText}</span>
-                </div>
-                <div class="break-stats">
-                    <div class="break-stat-item">
-                        <div class="break-stat-value">${g.queue}</div>
-                        Очередь
-                    </div>
-                    <div class="break-stat-item">
-                        <div class="break-stat-value break-stat-value-green">${g.freeReady}</div>
-                        Свободны
-                    </div>
-                    <div class="break-stat-item">
-                        <div class="break-stat-value break-stat-value-red">${g.offline}</div>
-                        Перерыв
-                    </div>
-                </div>
-                <div class="break-action ${g.actionClass}">
-                    <span class="break-action-text">${g.action}</span>
-                    <span class="break-action-sub">${g.busy} в работе</span>
-                </div>
+            <div class="break-footer">
+                <span class="break-footer-item break-footer-free">🟢 Свободен: ${analysis.overall.freeReady}</span>
+                <span class="break-footer-item break-footer-short">🟡 Ожид: ${analysis.overall.freeShort}</span>
+                <span class="break-footer-item break-footer-offline">🔴 Перер: ${analysis.overall.offline}</span>
+                <span class="break-footer-item break-footer-busy">🟠 Разг: ${analysis.overall.busy}</span>
+                <span class="break-footer-item break-footer-total">👥 Всего: ${analysis.overall.total}</span>
             </div>
         `;
+
+        panel.innerHTML = html;
+
+        document.getElementById('settings-button')?.addEventListener('click', openSettingsModal);
     }
-
-    html += `</div>`;
-
-    html += `
-        <div class="break-footer">
-            <span class="break-footer-item break-footer-free">🟢 Свободен: ${analysis.overall.freeReady}</span>
-            <span class="break-footer-item break-footer-short">🟡 Ожид: ${analysis.overall.freeShort}</span>
-            <span class="break-footer-item break-footer-offline">🔴 Перер: ${analysis.overall.offline}</span>
-            <span class="break-footer-item break-footer-busy">🟠 Разг: ${analysis.overall.busy}</span>
-            <span class="break-footer-item break-footer-total">👥 Всего: ${analysis.overall.total}</span>
-        </div>
-    `;
-
-    panel.innerHTML = html;  ;
-
-    document.getElementById('settings-button')?.addEventListener('click', openSettingsModal);
-}
-
-
-
 
     // ========== МОДАЛЬНОЕ ОКНО НАСТРОЕК ==========
     function openSettingsModal() {
@@ -1018,7 +1006,6 @@ function renderPanel(analysis) {
 
     // ========== ОБНОВЛЕНИЕ ==========
     function update() {
-
         if (!isTargetPage()) {
             if (panelWrapper) {
                 panelWrapper.style.display = 'none';
@@ -1046,95 +1033,94 @@ function renderPanel(analysis) {
         }
     }
 
-    // ========== НАБЛЮДАТЕЛИ ДЛЯ SPA ==========
-    let observer = null;
-    let urlCheckInterval = null;
+    // ========== УЛУЧШЕННЫЙ MUTATION OBSERVER ==========
+    let textObserver = null;
+    let lastTextFound = false;
+    let initializationCheckDone = false;
 
-    function setupObservers() {
-        if (observer) {
-            observer.disconnect();
-            observer = null;
-        }
-        if (urlCheckInterval) {
-            clearInterval(urlCheckInterval);
-            urlCheckInterval = null;
+    function setupTextObserver() {
+        // Отключаем старый observer
+        if (textObserver) {
+            textObserver.disconnect();
+            textObserver = null;
         }
 
-        observer = new MutationObserver((mutations) => {
-            let shouldUpdate = false;
+        // Создаем новый observer для отслеживания изменений в body
+        textObserver = new MutationObserver((mutations) => {
+            // Проверяем наличие текста
+            const isTarget = isTargetPage();
 
-            for (const mutation of mutations) {
-                if (mutation.type === 'childList' && mutation.addedNodes.length) {
-                    for (const node of mutation.addedNodes) {
-                        if (node.nodeType === 1) {
-                            if (node.querySelector && (
-                                node.querySelector('.grid.gap-4.w-1\\/2') ||
-                                node.querySelector('table._table_g86u9_1')
-                            )) {
-                                shouldUpdate = true;
-                                break;
-                            }
-                            if (node.classList && (
-                                node.classList.contains('grid') ||
-                                node.classList.contains('_table_g86u9_1')
-                            )) {
-                                shouldUpdate = true;
-                                break;
-                            }
-                        }
+            // Если статус изменился или это первая проверка
+            if (isTarget !== lastTextFound || !initializationCheckDone) {
+                const oldState = lastTextFound;
+                lastTextFound = isTarget;
+                initializationCheckDone = true;
+
+                if (isTarget) {                    
+                    setTimeout(() => update(), 500);
+                } else {
+                    if (oldState !== isTarget) {
+                        console.log('❌ [BreakAdvisor] Текст пропал, скрываем панель');
                     }
-                }
-                if (mutation.type === 'attributes' && mutation.target === document.body) {
-                    shouldUpdate = true;
-                }
-            }
-
-            if (shouldUpdate) {
-                clearTimeout(window._breakAdvisorUpdateTimeout);
-                window._breakAdvisorUpdateTimeout = setTimeout(() => {
-                    if (isTargetPage()) {
-                        update();
-                    }
-                }, 300);
-            }
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['class', 'style']
-        });
-
-        let lastUrl = window.location.href;
-        urlCheckInterval = setInterval(() => {
-            const currentUrl = window.location.href;
-            if (currentUrl !== lastUrl) {
-                lastUrl = currentUrl;
-                setTimeout(() => {
-                    if (isTargetPage()) {
-                        update();
-                    } else if (panelWrapper) {
+                    // Если текст пропал - скрываем панель
+                    if (panelWrapper) {
                         panelWrapper.style.display = 'none';
                     }
-                }, 500);
+                }
             }
-        }, 500);
+        });
 
+        // Наблюдаем за всем body на изменения
+        textObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+            characterDataOldValue: true,
+            attributes: false
+        });
 
+        // Инициализируем начальное состояние с задержкой
+        setTimeout(() => {
+            const isTarget = isTargetPage();
+            lastTextFound = isTarget;
+            initializationCheckDone = true;
+
+            if (isTarget) {               
+                setTimeout(() => update(), 500);
+            } else {                
+                // Периодически проверяем в течение первых 10 секунд
+                let attempts = 0;
+                const maxAttempts = 10;
+                const checkInterval = setInterval(() => {
+                    attempts++;
+                    if (isTargetPage()) {
+                        clearInterval(checkInterval);
+                        lastTextFound = true;                        
+                        setTimeout(() => update(), 500);
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkInterval);                        
+                    }
+                }, 1000);
+            }
+        }, 2000);
     }
 
     // ========== ЗАПУСК ==========
 
     addStyles();
-    setupObservers();
 
+    // Настраиваем новый TextObserver
+    setupTextObserver();
+
+    // Дополнительная проверка через 5 секунд
     setTimeout(() => {
-        if (isTargetPage()) {
+        if (isTargetPage() && !lastTextFound) {
+            lastTextFound = true;            
             update();
         }
-    }, 3000);
+    }, 5000);
 
+    // Периодическое обновление данных
     setInterval(() => {
         if (isTargetPage()) {
             update();
