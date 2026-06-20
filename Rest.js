@@ -817,7 +817,7 @@ function renderPanel(analysis) {
 
     let html = `
         <div class="break-panel-header">
-            <span class="break-panel-title">📊 Анализ перерывов</span>
+            <span class="break-panel-title">Анализ перерывов</span>
             <div class="break-panel-controls">
                 <span class="break-timestamp">🔄 ${timeStr}</span>
                 <span id="settings-button" class="break-settings-btn" title="Настройки">⚙️</span>
