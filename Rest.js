@@ -175,7 +175,7 @@
         }
 
         .break-action-sub {
-            font-size: 12px;
+            font-size: 14px;
             opacity: 0.8;
         }
 
@@ -871,7 +871,7 @@
                     </div>
                     <div class="break-action ${g.actionClass}">
                         <span class="break-action-text">${g.action}</span>
-                        <span class="break-action-sub">${g.busy} в работе</span>
+                        <span class="break-action-sub">${g.busy} разговаривает</span>
                     </div>
                 </div>
             `;
