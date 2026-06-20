@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Анализ перерывов новая логика 4.0
+// @name         Анализ перерывов новая логика 
 // @namespace    http://tampermonkey.net/
-// @version      5.4
+// @version      5.5
 // @description  Исправлены цвета и убрана лишняя информация
 // @match        https://ai.sknt.ru/monitoring_cc
 // @grant        none
@@ -32,12 +32,12 @@
 
         .break-panel-header {
             display: flex;
-            justify-content: space-between;
+            justify-content: space-around;
             align-items: center;
             padding-bottom: 12px;
             border-bottom: 1px solid var(--color-border, #E0E0E0);
             background-color: #58676e !important;
-            padding: 6px 8px;
+            padding: 6px 14px;
         }
 
         .break-panel-title {
@@ -112,9 +112,8 @@
         .break-card-badge {
             background: #2196F3;
             color: #fff;
-            padding: 2px 12px;
-            border-radius: 4px;
-            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 4px;           
             font-weight: 600;
         }
 
