@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Анализ перерывов с настройкой
+// @name         Анализ перерывов новая логика 4.0
 // @namespace    http://tampermonkey.net/
-// @version      3.5
-// @description  Анализ перерывов
+// @version      5.4
+// @description  Исправлены цвета и убрана лишняя информация
 // @match        https://ai.sknt.ru/monitoring_cc
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/Sselenso/Scripts/main/Rest.js
@@ -12,46 +12,458 @@
 (function() {
     'use strict';
 
-    console.log('🚀 [BreakAdvisor] Скрипт запущен, версия 3.5 (исправлены названия групп)');
 
-    // ========== ЦВЕТОВАЯ СХЕМА ==========
-    const COLORS = {
-        primary: '#2196F3',
-        primaryDark: '#1976D2',
-        success: '#4CAF50',
-        successDark: '#388E3C',
-        warning: '#FF9800',
-        warningDark: '#F57C00',
-        error: '#F44336',
-        errorDark: '#D32F2F',
-        bg: '#FFFFFF',
-        bgSoft: '#F5F5F5',
-        text: '#212121',
-        textSoft: '#616161',
-        border: '#E0E0E0',
-        shadow: '0 5px 15px rgba(0, 0, 0, 0.1)'
-    };
+
+    // ========== СТИЛИ ==========
+    const STYLES = `
+        .break-panel-wrapper {
+            margin-top: 20px;
+            grid-column: 1 / -1;
+            width: 100%;
+        }
+
+        .break-panel {
+            background: var(--color-bg-primary, #FFFFFF);
+            color: var(--color-text-primary, #212121);
+            border: 1px solid var(--color-border, #E0E0E0);
+            font-size: 14px;
+            width: 100%;
+        }
+
+        .break-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--color-border, #E0E0E0);
+            background-color: #58676e !important;
+            padding: 6px 8px;
+        }
+
+        .break-panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-text-invert);
+        }
+
+        .break-panel-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .break-timestamp {
+            font-size: 12px;
+            color: var(--color-text-secondary, #616161);
+            background: var(--color-bg-secondary, #F5F5F5);
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid var(--color-border, #E0E0E0);
+        }
+
+        .break-settings-btn {
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--color-text-secondary, #616161);
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .break-settings-btn:hover {
+            background: var(--color-bg-secondary, #F5F5F5);
+        }
+
+        .break-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .break-card {
+            padding: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+
+        .break-card-queue-0 {
+            background: #FFFFFF;
+        }
+
+        .break-card-queue-5 {
+            background: #FFF8E1;
+        }
+
+        .break-card-queue-10 {
+            background: #FFEBEE;
+        }
+
+        .break-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .break-card-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-text-primary, #212121);
+        }
+
+        .break-card-badge {
+            background: #2196F3;
+            color: #fff;
+            padding: 2px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .break-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: var(--color-bg-secondary, #F5F5F5);
+            border-radius: 4px;
+        }
+
+        .break-stat-item {
+            text-align: center;
+            font-size: 12px;
+            color: var(--color-text-secondary, #616161);
+        }
+
+        .break-stat-value {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--color-text-primary, #212121);
+        }
+
+        .break-stat-value-green {
+            color: #4CAF50;
+        }
+
+        .break-stat-value-red {
+            color: #F44336;
+        }
+
+        .break-action {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .break-action-optimal {
+            background: #bbf7d0;
+        }
+
+        .break-action-warning {
+            background: #FF9800;
+            color: #fff;
+            border: 1px solid #F57C00;
+        }
+
+        .break-action-danger {
+            background: #F44336;
+            color: #fff;
+            border: 1px solid #D32F2F;
+        }
+
+        .break-action-text {
+            flex: 1;
+        }
+
+        .break-action-sub {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .break-footer {
+            padding: 6px 8px;
+            border-top: 1px solid var(--color-border, #E0E0E0);
+            display: flex;
+            justify-content: space-around;
+            color: var(--color-text-secondary, #616161);
+            font-size: 13px;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .break-footer-item {
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid transparent;
+        }
+
+        .break-footer-free {
+            background: #E8F5E9;
+            color: #2E7D32;
+            border-color: #4CAF50;
+        }
+
+        .break-footer-short {
+            background: #FFF8E1;
+            color: #5D4037;
+            border-color: #FFC107;
+        }
+
+        .break-footer-offline {
+            background: #FFEBEE;
+            color: #C62828;
+            border-color: #F44336;
+        }
+
+        .break-footer-busy {
+            background: #FFF3E0;
+            color: #E65100;
+            border-color: #FF9800;
+        }
+
+        .break-footer-total {
+            background: #E3F2FD;
+            color: #1565C0;
+            border-color: #2196F3;
+        }
+
+        .break-loading {
+            text-align: center;
+            color: var(--color-text-secondary, #666);
+            padding: 20px;
+        }
+
+        .break-error {
+            color: #F44336;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .break-hidden {
+            display: none;
+        }
+
+        /* Модальное окно */
+        .break-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.3);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .break-modal {
+            background: #FFFFFF;
+            color: #212121;
+            padding: 0;
+            border-radius: 4px;
+            max-width: 560px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            border: 1px solid #E0E0E0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        .break-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: #58676e !important;
+            border-bottom: 1px solid #E0E0E0;
+        }
+
+        .break-modal-title {
+            margin: 0;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .break-modal-close {
+            font-size: 22px;
+            cursor: pointer;
+            color: #ffffff;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .break-modal-close:hover {
+            opacity: 1;
+        }
+
+        .break-modal-body {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .break-modal-label {
+            display: block;
+            margin-bottom: 4px;
+            color: #212121;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .break-modal-description {
+            display: block;
+            margin-bottom: 8px;
+            color: #757575;
+            font-size: 12px;
+            font-style: italic;
+        }
+
+        .break-modal-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: #FFFFFF;
+            border: 1px solid #D0D0D0;
+            color: #212121;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .break-modal-input:focus {
+            border-color: #2196F3;
+            outline: none;
+        }
+
+        .break-modal-input-sm {
+            width: 80px;
+            margin-left: 10px;
+            padding: 6px 8px;
+            background: #FFFFFF;
+            border: 1px solid #D0D0D0;
+            color: #212121;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .break-modal-input-sm:focus {
+            border-color: #2196F3;
+            outline: none;
+        }
+
+        .break-modal-fieldset {
+            border: 1px solid #E0E0E0;
+            border-radius: 4px;
+            padding: 12px 14px;
+            margin: 0;
+        }
+
+        .break-modal-legend {
+            color: #616161;
+            padding: 0 8px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .break-modal-field {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #212121;
+        }
+
+        .break-modal-field:last-child {
+            margin-bottom: 0;
+        }
+
+        .break-modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+            padding-top: 14px;
+            border-top: 1px solid #E0E0E0;
+        }
+
+        .break-modal-btn {
+            padding: 8px 20px;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            font-size: 14px;
+        }
+
+        .break-modal-btn-save {
+            flex: 2;
+            background: #2196F3;
+            color: #fff;
+            border-color: #1976D2;
+        }
+
+        .break-modal-btn-save:hover {
+            background: #1976D2;
+        }
+
+        .break-modal-btn-reset {
+            flex: 1;
+            background: #9E9E9E;
+            color: #fff;
+            border-color: #757575;
+        }
+
+        .break-modal-btn-reset:hover {
+            background: #757575;
+        }
+
+        .break-modal-btn-cancel {
+            flex: 1;
+            background: #F5F5F5;
+            color: #212121;
+            border-color: #D0D0D0;
+        }
+
+        .break-modal-btn-cancel:hover {
+            background: #E0E0E0;
+        }
+    `;
+
+    // ========== ДОБАВЛЕНИЕ СТИЛЕЙ ==========
+    function addStyles() {
+        if (document.getElementById('break-advisor-styles')) return;
+
+        const styleEl = document.createElement('style');
+        styleEl.id = 'break-advisor-styles';
+        styleEl.textContent = STYLES;
+        document.head.appendChild(styleEl);
+    }
 
     // ========== НАСТРОЙКИ ==========
     const DEFAULT_CONFIG = {
         freeReadyThreshold: 60,
         targetGroups: ['AO', 'ТехПо'],
-        queue0LimitIfFree: 3,
-        queue0LimitNoFree: 2,
-        queue0UseFreeIfMoreThan: 3,
-        queue1to7Limit: 2,
-        queue8plusLimit: 1
+        reserveForQueue: 5,
+        maxBreakQueue1to5: 3,
+        maxBreakQueue6to10: 2,
+        maxBreakQueue10plus: 1,
+        ignoreQueueIfFree: 5
     };
 
     let CONFIG = loadConfig();
-    console.log('⚙️ [BreakAdvisor] Конфигурация:', CONFIG);
 
     function loadConfig() {
         try {
             const saved = localStorage.getItem('breakAdvisorConfig');
             if (saved) {
                 const parsed = JSON.parse(saved);
-                console.log('✅ [BreakAdvisor] Конфиг загружен из localStorage');
                 return { ...DEFAULT_CONFIG, ...parsed };
             }
         } catch (e) {
@@ -63,7 +475,6 @@
     function saveConfig() {
         try {
             localStorage.setItem('breakAdvisorConfig', JSON.stringify(CONFIG));
-            console.log('💾 [BreakAdvisor] Конфиг сохранён');
         } catch (e) {
             console.error('❌ [BreakAdvisor] Ошибка сохранения:', e);
         }
@@ -72,30 +483,60 @@
     // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
     const UPDATE_INTERVAL = 15000;
     let settingsModal = null;
+    let panelWrapper = null;
+    let panel = null;
+
+    // ========== ПРОВЕРКА СТРАНИЦЫ ==========
+    function isTargetPage() {
+        const containers = document.querySelectorAll('.grid.gap-4.w-1\\/2');
+        const hasTables = document.querySelectorAll('table._table_g86u9_1').length >= 2;
+        return containers.length >= 2 && hasTables;
+    }
+
+    // ========== ПОИСК КОНТЕЙНЕРА ДЛЯ ВСТАВКИ ==========
+    function findInsertPosition() {
+        const containers = document.querySelectorAll('.grid.gap-4.w-1\\/2');
+        if (containers.length >= 2) {
+            return containers[1];
+        }
+        return null;
+    }
 
     // ========== СОЗДАНИЕ ПАНЕЛИ ==========
-    const panel = document.createElement('div');
-    panel.id = 'break-advisor-panel';
-    Object.assign(panel.style, {
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        backgroundColor: COLORS.bg,
-        color: COLORS.text,
-        padding: '16px 20px',
-        borderRadius: '8px',
-        zIndex: '9999',
-        minWidth: '620px',
-        maxWidth: '800px',
-        fontSize: '14px',
-        boxShadow: COLORS.shadow,
-        fontFamily: 'Segoe UI, Roboto, Arial, sans-serif',
-        border: `1px solid ${COLORS.border}`,
-        transition: 'all 0.2s ease'
-    });
-    panel.innerHTML = '<div style="text-align:center;color:#666;padding:20px">⏳ Загрузка данных...</div>';
-    document.body.appendChild(panel);
-    console.log('🎨 [BreakAdvisor] Панель создана');
+    function createPanel() {
+        if (panelWrapper) {
+            panelWrapper.remove();
+            panelWrapper = null;
+            panel = null;
+        }
+
+        const targetContainer = findInsertPosition();
+
+        if (!targetContainer) {
+            return false;
+        }
+
+        const existingPanel = targetContainer.querySelector('#break-advisor-panel');
+        if (existingPanel) {
+            const wrapper = existingPanel.closest('.break-panel-wrapper');
+            if (wrapper) {
+                wrapper.remove();
+            }
+        }
+
+        panelWrapper = document.createElement('div');
+        panelWrapper.className = 'break-panel-wrapper';
+
+        panel = document.createElement('div');
+        panel.id = 'break-advisor-panel';
+        panel.className = 'break-panel';
+        panel.innerHTML = '<div class="break-loading">⏳ Загрузка данных...</div>';
+
+        panelWrapper.appendChild(panel);
+        targetContainer.appendChild(panelWrapper);
+
+        return true;
+    }
 
     // ========== УТИЛИТЫ ==========
     function parseTimeToSeconds(str) {
@@ -113,37 +554,20 @@
         return total;
     }
 
-    function createElement(tag, attrs = {}, styles = {}, children = []) {
-        const el = document.createElement(tag);
-        Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
-        Object.entries(styles).forEach(([k, v]) => el.style[k] = v);
-        children.forEach(child => {
-            if (typeof child === 'string') {
-                el.appendChild(document.createTextNode(child));
-            } else {
-                el.appendChild(child);
-            }
-        });
-        return el;
-    }
-
     // ========== ПАРСИНГ ДАННЫХ ==========
     function parseData() {
-        console.log('🔍 [BreakAdvisor] === НАЧАЛО ПАРСИНГА ===');
         const tables = document.querySelectorAll('table._table_g86u9_1');
-        console.log(`📊 [BreakAdvisor] Найдено таблиц: ${tables.length}`);
+
 
         if (tables.length < 2) {
-            console.warn('⚠️ [BreakAdvisor] Ожидалось 2 таблицы, найдено:', tables.length);
             return null;
         }
 
         const summaryTable = tables[0];
         const detailTable = tables[1];
 
-        // === ПАРСИНГ СВОДНОЙ ТАБЛИЦЫ (очереди) ===
         const groupMetrics = {};
-        console.log('📋 [BreakAdvisor] === ПАРСИНГ СВОДНОЙ ТАБЛИЦЫ ===');
+
         summaryTable.querySelectorAll('tr').forEach((row, rowIndex) => {
             const cells = row.querySelectorAll('td');
             if (cells.length >= 2) {
@@ -151,7 +575,6 @@
                 const queueRaw = cells[1].innerText.trim();
                 const queue = parseInt(queueRaw, 10);
 
-                console.log(`📊 [BreakAdvisor] Сводная[${rowIndex}]: "${name}" | очередь: "${queueRaw}" → ${queue} (${isNaN(queue) ? 'NaN!' : 'OK'})`);
 
                 if (name && !isNaN(queue)) {
                     groupMetrics[name] = { queue };
@@ -160,34 +583,30 @@
                 }
             }
         });
-        console.log('✅ [BreakAdvisor] Сводная таблица:', groupMetrics);
 
-        // === ПАРСИНГ ДЕТАЛЬНОЙ ТАБЛИЦЫ (операторы) ===
+
         const groups = {};
         let currentGroup = null;
 
-        console.log('📋 [BreakAdvisor] === ПАРСИНГ ДЕТАЛЬНОЙ ТАБЛИЦЫ ===');
         detailTable.querySelectorAll('tr').forEach(row => {
             const header = row.querySelector('td[colspan="5"]');
             if (header) {
-                // 🔧 ИСПРАВЛЕНИЕ: Очищаем название от " Статистика" и ссылок
                 const rawText = header.innerText.trim().replace(/<!---->/g, '');
                 currentGroup = rawText
-                    .replace(/\s*Статистика\s*/g, '')  // Удаляем "Статистика"
+                    .replace(/\s*Статистика\s*/g, '')
                     .trim();
 
-                console.log(`🏷️ [BreakAdvisor] Заголовок: "${rawText}" → "${currentGroup}"`);
 
-                // Игнорируем статистические группы
+
                 if (currentGroup.includes('Статистика')) {
-                    console.log(`⏭️ [BreakAdvisor] Пропускаем статистику: ${currentGroup}`);
+
                     currentGroup = null;
                     return;
                 }
 
                 if (!groups[currentGroup]) {
                     groups[currentGroup] = { total: 0, freeReady: 0, freeShort: 0, busy: 0, offline: 0, ringing: 0 };
-                    console.log(`🆕 [BreakAdvisor] Новая группа: ${currentGroup}`);
+
                 }
                 return;
             }
@@ -224,21 +643,16 @@
             }
         });
 
-        // === ПРИВАИВАЕМ ОЧЕРЕДИ К ГРУППАМ ===
         for (const group in groups) {
             groups[group].queue = groupMetrics[group]?.queue ?? 0;
-            console.log(`📦 [BreakAdvisor] Итог: ${group} → queue=${groups[group].queue}, freeReady=${groups[group].freeReady}, offline=${groups[group].offline}`);
         }
 
-        console.log('✅ [BreakAdvisor] === ПАРСИНГ ЗАВЕРШЁН ===');
         return groups;
     }
 
     // ========== АНАЛИЗ ==========
     function analyze(groups) {
-        console.log('🧠 [BreakAdvisor] === НАЧАЛО АНАЛИЗА ===');
         if (!groups) {
-            console.warn('⚠️ [BreakAdvisor] groups === null');
             return null;
         }
 
@@ -248,239 +662,337 @@
             overall: { freeReady: 0, freeShort: 0, offline: 0, busy: 0, total: 0 }
         };
 
+        const {
+            reserveForQueue,
+            maxBreakQueue1to5,
+            maxBreakQueue6to10,
+            maxBreakQueue10plus,
+            ignoreQueueIfFree
+        } = CONFIG;
+
         for (const [name, data] of Object.entries(groups)) {
             if (!CONFIG.targetGroups.includes(name)) {
-                console.log(`⏭️ [BreakAdvisor] Пропускаем ${name} (не в targetGroups: ${CONFIG.targetGroups.join(', ')})`);
                 continue;
             }
 
             const queue = data.queue;
-            console.log(`🔎 [BreakAdvisor] Анализируем: ${name}, очередь: ${queue}`);
-
-            const {
-                queue0LimitIfFree = DEFAULT_CONFIG.queue0LimitIfFree,
-                queue0LimitNoFree = DEFAULT_CONFIG.queue0LimitNoFree,
-                queue0UseFreeIfMoreThan = DEFAULT_CONFIG.queue0UseFreeIfMoreThan,
-                queue1to7Limit = DEFAULT_CONFIG.queue1to7Limit,
-                queue8plusLimit = DEFAULT_CONFIG.queue8plusLimit
-            } = CONFIG;
-
-            let maxAllowed;
-            if (queue === 0) {
-                if (data.freeReady > queue0UseFreeIfMoreThan) {
-                    maxAllowed = data.freeReady;
-                    console.log(`📐 ${name}: freeReady(${data.freeReady}) > ${queue0UseFreeIfMoreThan} → max = freeReady`);
-                } else if (data.freeReady > 0) {
-                    maxAllowed = queue0LimitIfFree;
-                    console.log(`📐 ${name}: freeReady > 0 → max = ${queue0LimitIfFree}`);
-                } else {
-                    maxAllowed = queue0LimitNoFree;
-                    console.log(`📐 ${name}: freeReady = 0 → max = ${queue0LimitNoFree}`);
-                }
-            } else if (queue >= 1 && queue <= 7) {
-                maxAllowed = queue1to7Limit;
-                console.log(`📐 ${name}: queue 1-7 → max = ${queue1to7Limit}`);
-            } else {
-                maxAllowed = queue8plusLimit;
-                console.log(`📐 ${name}: queue 8+ → max = ${queue8plusLimit}`);
-            }
-
-            if (maxAllowed === undefined) {
-                console.warn('❗ [BreakAdvisor] maxAllowed undefined для', name);
-                maxAllowed = 0;
-            }
-
+            const freeReady = data.freeReady;
             const offline = data.offline;
-            let action, actionStyle;
-            if (offline === maxAllowed) {
-                action = '✅ Оптимально';
-                actionStyle = { bg: COLORS.success, color: '#fff', border: COLORS.successDark };
-            } else if (offline < maxAllowed) {
-                const need = maxAllowed - offline;
-                action = `🔺 Отпустить ${need} (до ${maxAllowed})`;
-                actionStyle = { bg: COLORS.warning, color: '#fff', border: COLORS.warningDark };
+
+            // Определяем "реальную" очередь
+            let effectiveQueue = queue;
+
+            // Если есть свободные операторы и очередь небольшая - игнорируем её
+            if (freeReady > 0 && queue <= ignoreQueueIfFree) {
+                effectiveQueue = 0;
+            }
+
+            let maxAllowed = 0;
+            let canRelease = 0;
+            let action = '';
+            let actionClass = '';
+            let queueRange = '';
+
+
+
+            if (effectiveQueue === 0) {
+                canRelease = Math.max(0, freeReady - reserveForQueue);
+                queueRange = '0';
+                maxAllowed = canRelease;
+
+                if (canRelease > 0) {
+                    action = `🔺 Можно отпустить ${canRelease}`;
+                    actionClass = 'break-action-optimal'; // ЗЕЛЕНЫЙ - можно отпускать
+                } else {
+                   action = '✅ Оптимально';
+                    actionClass = 'break-action-optimal';
+                }
+
+
+
+            } else if (effectiveQueue >= 1 && effectiveQueue <= 5) {
+                maxAllowed = maxBreakQueue1to5;
+                queueRange = '0-5';
+
+                if (offline === maxAllowed) {
+                    action = '✅ Оптимально';
+                    actionClass = 'break-action-optimal';
+                } else if (offline < maxAllowed) {
+                    const need = maxAllowed - offline;
+                    action = `🔺 Отпустить ${need} (до ${maxAllowed})`;
+                    actionClass = 'break-action-optimal'; // ЗЕЛЕНЫЙ - можно отпускать
+                } else {
+                    const excess = offline - maxAllowed;
+                    if (excess <= 2) {
+                        action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
+                        actionClass = 'break-action-warning'; // ОРАНЖЕВЫЙ - немного вернуть
+                    } else {
+                        action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
+                        actionClass = 'break-action-danger'; // КРАСНЫЙ - много вернуть
+                    }
+                }
+
+            } else if (effectiveQueue >= 6 && effectiveQueue <= 10) {
+                maxAllowed = maxBreakQueue6to10;
+                queueRange = '6-10';
+
+                if (offline === maxAllowed) {
+                    action = '✅ Оптимально';
+                    actionClass = 'break-action-optimal';
+                } else if (offline < maxAllowed) {
+                    const need = maxAllowed - offline;
+                    action = `🔺 Отпустить ${need} (до ${maxAllowed})`;
+                    actionClass = 'break-action-optimal'; // ЗЕЛЕНЫЙ - можно отпускать
+                } else {
+                    const excess = offline - maxAllowed;
+                    if (excess <= 2) {
+                        action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
+                        actionClass = 'break-action-warning'; // ОРАНЖЕВЫЙ - немного вернуть
+                    } else {
+                        action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
+                        actionClass = 'break-action-danger'; // КРАСНЫЙ - много вернуть
+                    }
+                }
+
+
             } else {
-                const excess = offline - maxAllowed;
-                action = `🔻 Вернуть ${excess}`;
-                actionStyle = { bg: COLORS.error, color: '#fff', border: COLORS.errorDark };
+                maxAllowed = maxBreakQueue10plus;
+                queueRange = '10+';
+
+                if (offline === maxAllowed) {
+                    action = '✅ Оптимально';
+                    actionClass = 'break-action-optimal';
+                } else if (offline < maxAllowed) {
+                    const need = maxAllowed - offline;
+                    action = `🔺 Отпустить ${need} (до ${maxAllowed})`;
+                    actionClass = 'break-action-optimal'; // ЗЕЛЕНЫЙ - можно отпускать
+                } else {
+                    const excess = offline - maxAllowed;
+                    if (excess <= 2) {
+                        action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
+                        actionClass = 'break-action-warning'; // ОРАНЖЕВЫЙ - немного вернуть
+                    } else {
+                        action = `🔻 Вернуть ${excess} (до ${maxAllowed})`;
+                        actionClass = 'break-action-danger'; // КРАСНЫЙ - много вернуть
+                    }
+                }
             }
 
             result.groups[name] = {
-                queue, freeReady: data.freeReady, freeShort: data.freeShort,
-                busy: data.busy, offline, total: data.total, maxAllowed, action, actionStyle
+                queue,
+                effectiveQueue,
+                queueRange,
+                freeReady,
+                freeShort: data.freeShort,
+                busy: data.busy,
+                offline,
+                total: data.total,
+                maxAllowed,
+                canRelease,
+                action,
+                actionClass
             };
 
-            result.overall.freeReady += data.freeReady;
+            result.overall.freeReady += freeReady;
             result.overall.freeShort += data.freeShort;
-            result.overall.offline += data.offline;
+            result.overall.offline += offline;
             result.overall.busy += data.busy;
             result.overall.total += data.total;
         }
 
-        console.log('✅ [BreakAdvisor] === АНАЛИЗ ЗАВЕРШЁН ===');
         return result;
     }
 
-    // ========== ОТРИСОВКА ПАНЕЛИ ==========
-    function renderPanel(analysis) {
-        console.log('🎨 [BreakAdvisor] Отрисовка панели...');
-        if (!analysis) {
-            panel.innerHTML = `<div style="color:${COLORS.error};text-align:center;padding:20px">❌ Нет данных для анализа</div>`;
-            return;
+
+// ========== ОТРИСОВКА ПАНЕЛИ ==========
+function renderPanel(analysis) {
+    if (!analysis || !panel) {
+        if (panel) {
+            panel.innerHTML = `<div class="break-error">❌ Нет данных для анализа</div>`;
         }
+        return;
+    }
 
-        const timeStr = new Date(analysis.timestamp).toLocaleTimeString('ru-RU');
+    const timeStr = new Date(analysis.timestamp).toLocaleTimeString('ru-RU');
 
-        let html = `
-            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid ${COLORS.border};padding-bottom:12px;margin-bottom:16px">
-                <span style="font-size:18px;font-weight:600;color:${COLORS.primary}">📊 Перерывы</span>
-                <div style="display:flex;gap:8px;align-items:center">
-                    <span style="font-size:12px;color:${COLORS.textSoft};background:${COLORS.bgSoft};padding:4px 12px;border-radius:20px;border:1px solid ${COLORS.border}">обн. ${timeStr}</span>
-                    <span id="settings-button" style="cursor:pointer;font-size:18px;color:${COLORS.primary};font-weight:600" title="Настройки">⚙️</span>
-                </div>
+    let html = `
+        <div class="break-panel-header">
+            <span class="break-panel-title">📊 Анализ перерывов</span>
+            <div class="break-panel-controls">
+                <span class="break-timestamp">🔄 ${timeStr}</span>
+                <span id="settings-button" class="break-settings-btn" title="Настройки">⚙️</span>
             </div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between">
-        `;
+        </div>
+        <div class="break-grid">
+    `;
 
-        for (const [name, g] of Object.entries(analysis.groups)) {
-            const recText = g.maxAllowed !== undefined ? g.maxAllowed : '?';
-            const cardBorder = g.queue > 7 ? COLORS.error : (g.freeReady === 0 && g.queue > 0 ? COLORS.warning : COLORS.primary);
-            const cardBg = g.queue > 7 ? '#FFEBEE' : (g.freeReady === 0 && g.queue > 0 ? '#FFF3E0' : COLORS.bg);
-
-            html += `
-                <div style="flex:1 0 290px;background:${cardBg};border-radius:8px;padding:14px;border:1px solid ${cardBorder};box-shadow:0 2px 6px rgba(0,0,0,0.08)">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-                        <span style="font-size:18px;font-weight:600;color:${COLORS.text}">${name}</span>
-                        <span style="background:${COLORS.primary};color:#fff;padding:4px 14px;border-radius:30px;font-size:13px;font-weight:600">🎯 ${recText}</span>
-                    </div>
-                    <div style="height:1px;background:${COLORS.border};margin:8px 0"></div>
-                    <div style="margin-bottom:12px">
-                        <span style="background:${COLORS.bgSoft};padding:6px 14px;border-radius:20px;font-size:13px;border:1px solid ${COLORS.border}">
-                            📋 Очередь: <strong style="color:${COLORS.primary}">${g.queue}</strong>
-                        </span>
-                    </div>
-                    <div style="background:${COLORS.bgSoft};padding:10px 14px;border-radius:30px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border:1px solid ${COLORS.border}">
-                        <span>👥 <strong>${g.total}</strong></span>
-                        <span><span style="color:${COLORS.success}">🟢</span> <strong>${g.freeReady}</strong></span>
-                        <span><span style="color:${COLORS.error}">🔴</span> <strong>${g.offline}</strong></span>
-                        <span><span style="color:${COLORS.warning}">🟠</span> <strong>${g.busy}</strong></span>
-                    </div>
-                    <div style="margin-top:12px;background:${g.actionStyle.bg};color:${g.actionStyle.color};padding:8px 12px;border-radius:30px;font-weight:600;text-align:center;border:1px solid ${g.actionStyle.border}">
-                        ${g.action}
-                    </div>
-                </div>
-            `;
+    for (const [name, g] of Object.entries(analysis.groups)) {
+        // Определяем класс подсветки по реальной очереди (для отображения)
+        let cardClass = 'break-card break-card-queue-0';
+        if (g.queue >= 10) {
+            cardClass = 'break-card break-card-queue-10';
+        } else if (g.queue >= 5) {
+            cardClass = 'break-card break-card-queue-5';
         }
 
-        html += `</div>`;
+        // Текст для badge - только очередь и итоговое количество в перерыве
+        let rangeText = '';
+        if (g.effectiveQueue === 0) {
+            rangeText = `Оч: 0`;
+        } else if (g.effectiveQueue >= 1 && g.effectiveQueue <= 5) {
+            rangeText = `Оч: 1-5`;
+        } else if (g.effectiveQueue >= 6 && g.effectiveQueue <= 10) {
+            rangeText = `Оч: 6-10`;
+        } else {
+            rangeText = `Оч: 10+`;
+        }
+
+        // Итоговое количество в перерыве:
+        let targetText;
+        if (g.effectiveQueue === 0) {
+            if (g.canRelease > 0) {
+                // Если можно отпустить - показываем сколько будет всего
+                targetText = g.offline + g.canRelease;
+            } else {
+                // Если нельзя отпустить - показываем целевое значение из правил для очереди 1-5
+                targetText = CONFIG.maxBreakQueue1to5;
+            }
+        } else {
+            targetText = g.maxAllowed;
+        }
 
         html += `
-            <div style="margin-top:18px;padding-top:12px;border-top:1px solid ${COLORS.border};display:flex;justify-content:space-around;color:${COLORS.textSoft};font-size:13px;flex-wrap:wrap;gap:6px">
-                <span style="background:#E8F5E9;color:#2E7D32;padding:4px 12px;border-radius:20px;border:1px solid ${COLORS.success}">🟢 Свободен: ${analysis.overall.freeReady}</span>
-                <span style="background:#FFF8E1;color:#5D4037;padding:4px 12px;border-radius:20px;border:1px solid #FFC107">🟡 Ожид: ${analysis.overall.freeShort}</span>
-                <span style="background:#FFEBEE;color:#C62828;padding:4px 12px;border-radius:20px;border:1px solid ${COLORS.error}">🔴 Перер: ${analysis.overall.offline}</span>
-                <span style="background:#FFF3E0;color:#E65100;padding:4px 12px;border-radius:20px;border:1px solid ${COLORS.warning}">🟠 Разг: ${analysis.overall.busy}</span>
-                <span style="background:#E3F2FD;color:#1565C0;padding:4px 12px;border-radius:20px;border:1px solid ${COLORS.primary}">👥 Всего: ${analysis.overall.total}</span>
+            <div class="${cardClass}">
+                <div class="break-card-header">
+                    <span class="break-card-name">${name}</span>
+                    <span class="break-card-badge">${rangeText} | 🎯 ${targetText}</span>
+                </div>
+                <div class="break-stats">
+                    <div class="break-stat-item">
+                        <div class="break-stat-value">${g.queue}</div>
+                        Очередь
+                    </div>
+                    <div class="break-stat-item">
+                        <div class="break-stat-value break-stat-value-green">${g.freeReady}</div>
+                        Свободны
+                    </div>
+                    <div class="break-stat-item">
+                        <div class="break-stat-value break-stat-value-red">${g.offline}</div>
+                        Перерыв
+                    </div>
+                </div>
+                <div class="break-action ${g.actionClass}">
+                    <span class="break-action-text">${g.action}</span>
+                    <span class="break-action-sub">${g.busy} в работе</span>
+                </div>
             </div>
         `;
-
-        panel.innerHTML = html;
-        console.log('✅ [BreakAdvisor] Панель отрисована');
-
-        document.getElementById('settings-button')?.addEventListener('click', openSettingsModal);
     }
+
+    html += `</div>`;
+
+    html += `
+        <div class="break-footer">
+            <span class="break-footer-item break-footer-free">🟢 Свободен: ${analysis.overall.freeReady}</span>
+            <span class="break-footer-item break-footer-short">🟡 Ожид: ${analysis.overall.freeShort}</span>
+            <span class="break-footer-item break-footer-offline">🔴 Перер: ${analysis.overall.offline}</span>
+            <span class="break-footer-item break-footer-busy">🟠 Разг: ${analysis.overall.busy}</span>
+            <span class="break-footer-item break-footer-total">👥 Всего: ${analysis.overall.total}</span>
+        </div>
+    `;
+
+    panel.innerHTML = html;  ;
+
+    document.getElementById('settings-button')?.addEventListener('click', openSettingsModal);
+}
+
+
+
 
     // ========== МОДАЛЬНОЕ ОКНО НАСТРОЕК ==========
     function openSettingsModal() {
-        console.log('⚙️ [BreakAdvisor] Открытие настроек');
         if (settingsModal) {
             settingsModal.style.display = 'flex';
             return;
         }
 
-        const overlay = createElement('div', {}, {
-            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-            background: 'rgba(33, 150, 243, 0.1)', zIndex: 10000,
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
-        });
+        const overlay = document.createElement('div');
+        overlay.className = 'break-modal-overlay';
 
-        const modal = createElement('div', {}, {
-            background: COLORS.bg, color: COLORS.text, padding: '24px',
-            borderRadius: '8px', maxWidth: '520px', width: '90%',
-            maxHeight: '85vh', overflowY: 'auto',
-            border: `1px solid ${COLORS.border}`,
-            boxShadow: '0 10px 30px rgba(33,150,243,0.15)',
-            fontFamily: 'Segoe UI, Roboto, Arial, sans-serif'
-        });
+        overlay.innerHTML = `
+            <div class="break-modal">
+                <div class="break-modal-header">
+                    <h3 class="break-modal-title">⚙️ Настройки анализа</h3>
+                    <span id="modal-close" class="break-modal-close">&times;</span>
+                </div>
+                <div class="break-modal-body">
+                    <label>
+                        <span class="break-modal-label">Порог "Свободен" (сек):</span>
+                        <span class="break-modal-description">Время, после которого оператор считается готовым к перерыву</span>
+                        <input type="number" id="setting-freeReadyThreshold" value="${CONFIG.freeReadyThreshold}" class="break-modal-input">
+                    </label>
+                    <label>
+                        <span class="break-modal-label">Группы для анализа (через запятую):</span>
+                        <span class="break-modal-description">Названия групп, которые будут анализироваться</span>
+                        <input type="text" id="setting-targetGroups" value="${CONFIG.targetGroups.join(', ')}" class="break-modal-input">
+                    </label>
 
-        modal.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:15px;border-bottom:1px solid ${COLORS.border}">
-                <h3 style="margin:0;color:${COLORS.primary};font-size:20px;font-weight:600">⚙️ Настройки анализа</h3>
-                <span id="modal-close" style="font-size:24px;cursor:pointer;color:${COLORS.textSoft};line-height:1">&times;</span>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:16px">
-                <label>
-                    <span style="display:block;margin-bottom:6px;color:${COLORS.text};font-weight:500">Порог "Свободен" (сек):</span>
-                    <input type="number" id="setting-freeReadyThreshold" value="${CONFIG.freeReadyThreshold}"
-                           style="width:100%;padding:10px;background:${COLORS.bgSoft};border:1px solid ${COLORS.border};color:${COLORS.text};border-radius:4px;font-size:14px">
-                </label>
-                <label>
-                    <span style="display:block;margin-bottom:6px;color:${COLORS.text};font-weight:500">Группы (через запятую):</span>
-                    <input type="text" id="setting-targetGroups" value="${CONFIG.targetGroups.join(', ')}"
-                           style="width:100%;padding:10px;background:${COLORS.bgSoft};border:1px solid ${COLORS.border};color:${COLORS.text};border-radius:4px;font-size:14px">
-                </label>
-                <fieldset style="border:1px solid ${COLORS.border};border-radius:6px;padding:14px">
-                    <legend style="color:${COLORS.textSoft};padding:0 8px;font-size:14px">Правила для очереди 0</legend>
-                    <label style="display:block;margin-bottom:10px">
-                        Лимит, если есть свободные (>0):
-                        <input type="number" id="setting-queue0LimitIfFree" value="${CONFIG.queue0LimitIfFree}"
-                               style="width:80px;margin-left:10px;padding:6px;background:${COLORS.bgSoft};border:1px solid ${COLORS.border};color:${COLORS.text};border-radius:4px">
-                    </label>
-                    <label style="display:block;margin-bottom:10px">
-                        Лимит, если нет свободных:
-                        <input type="number" id="setting-queue0LimitNoFree" value="${CONFIG.queue0LimitNoFree}"
-                               style="width:80px;margin-left:10px;padding:6px;background:${COLORS.bgSoft};border:1px solid ${COLORS.border};color:${COLORS.text};border-radius:4px">
-                    </label>
-                    <label style="display:block">
-                        Если свободных > N, то лимит = все свободные:
-                        <input type="number" id="setting-queue0UseFreeIfMoreThan" value="${CONFIG.queue0UseFreeIfMoreThan}"
-                               style="width:80px;margin-left:10px;padding:6px;background:${COLORS.bgSoft};border:1px solid ${COLORS.border};color:${COLORS.text};border-radius:4px">
-                    </label>
-                </fieldset>
-                <label>
-                    <span style="display:block;margin-bottom:6px;color:${COLORS.text};font-weight:500">Лимит при очереди 1-7:</span>
-                    <input type="number" id="setting-queue1to7Limit" value="${CONFIG.queue1to7Limit}"
-                           style="width:100%;padding:10px;background:${COLORS.bgSoft};border:1px solid ${COLORS.border};color:${COLORS.text};border-radius:4px;font-size:14px">
-                </label>
-                <label>
-                    <span style="display:block;margin-bottom:6px;color:${COLORS.text};font-weight:500">Лимит при очереди 8+:</span>
-                    <input type="number" id="setting-queue8plusLimit" value="${CONFIG.queue8plusLimit}"
-                           style="width:100%;padding:10px;background:${COLORS.bgSoft};border:1px solid ${COLORS.border};color:${COLORS.text};border-radius:4px;font-size:14px">
-                </label>
-                <div style="display:flex;gap:10px;margin-top:20px">
-                    <button id="settings-save" style="flex:2;background:${COLORS.primary};color:#fff;border:none;padding:10px 16px;border-radius:40px;font-weight:600;cursor:pointer;box-shadow:0 2px 4px rgba(33,150,243,0.3);transition:background 0.2s">Сохранить</button>
-                    <button id="settings-reset" style="flex:1;background:#9E9E9E;color:#fff;border:none;padding:10px 16px;border-radius:40px;font-weight:600;cursor:pointer;transition:background 0.2s">Сброс</button>
-                    <button id="settings-cancel" style="flex:1;background:${COLORS.bgSoft};color:${COLORS.text};border:1px solid ${COLORS.border};padding:10px 16px;border-radius:40px;font-weight:600;cursor:pointer;transition:background 0.2s">Отмена</button>
+                    <fieldset class="break-modal-fieldset">
+                        <legend class="break-modal-legend">📌 Очередь = 0 (или игнорируется)</legend>
+                        <label class="break-modal-field">
+                            <span class="break-modal-label">Резерв операторов:</span>
+                            <span class="break-modal-description">Сколько свободных операторов оставлять на случай роста очереди. Остальных можно отпустить в перерыв</span>
+                            <input type="number" id="setting-reserveForQueue" value="${CONFIG.reserveForQueue}" class="break-modal-input">
+                        </label>
+                        <label class="break-modal-field">
+                            <span class="break-modal-label">Игнорировать очередь до:</span>
+                            <span class="break-modal-description">Если есть свободные операторы, очередь до этого числа игнорируется (считается как 0)</span>
+                            <input type="number" id="setting-ignoreQueueIfFree" value="${CONFIG.ignoreQueueIfFree}" class="break-modal-input">
+                        </label>
+                    </fieldset>
+
+                    <fieldset class="break-modal-fieldset">
+                        <legend class="break-modal-legend">📌 Очередь > 0 (максимум в перерыве)</legend>
+                        <label class="break-modal-field">
+                            <span class="break-modal-label">При очереди 0-5:</span>
+                            <span class="break-modal-description">Максимальное количество операторов в перерыве</span>
+                            <input type="number" id="setting-maxBreakQueue1to5" value="${CONFIG.maxBreakQueue1to5}" class="break-modal-input">
+                        </label>
+                        <label class="break-modal-field">
+                            <span class="break-modal-label">При очереди 6-10:</span>
+                            <span class="break-modal-description">Максимальное количество операторов в перерыве</span>
+                            <input type="number" id="setting-maxBreakQueue6to10" value="${CONFIG.maxBreakQueue6to10}" class="break-modal-input">
+                        </label>
+                        <label class="break-modal-field">
+                            <span class="break-modal-label">При очереди 10+:</span>
+                            <span class="break-modal-description">Максимальное количество операторов в перерыве</span>
+                            <input type="number" id="setting-maxBreakQueue10plus" value="${CONFIG.maxBreakQueue10plus}" class="break-modal-input">
+                        </label>
+                    </fieldset>
+
+                    <div class="break-modal-actions">
+                        <button id="settings-save" class="break-modal-btn break-modal-btn-save">Сохранить</button>
+                        <button id="settings-reset" class="break-modal-btn break-modal-btn-reset">Сброс</button>
+                        <button id="settings-cancel" class="break-modal-btn break-modal-btn-cancel">Отмена</button>
+                    </div>
                 </div>
             </div>
         `;
 
-        overlay.appendChild(modal);
         document.body.appendChild(overlay);
         settingsModal = overlay;
 
         document.getElementById('modal-close').addEventListener('click', closeModal);
         document.getElementById('settings-cancel').addEventListener('click', closeModal);
         document.getElementById('settings-save').addEventListener('click', () => {
-            console.log('💾 [BreakAdvisor] Сохранение настроек');
             const newConfig = {
                 freeReadyThreshold: parseInt(document.getElementById('setting-freeReadyThreshold').value, 10) || DEFAULT_CONFIG.freeReadyThreshold,
                 targetGroups: document.getElementById('setting-targetGroups').value.split(',').map(s => s.trim()).filter(Boolean),
-                queue0LimitIfFree: parseInt(document.getElementById('setting-queue0LimitIfFree').value, 10) || DEFAULT_CONFIG.queue0LimitIfFree,
-                queue0LimitNoFree: parseInt(document.getElementById('setting-queue0LimitNoFree').value, 10) || DEFAULT_CONFIG.queue0LimitNoFree,
-                queue0UseFreeIfMoreThan: parseInt(document.getElementById('setting-queue0UseFreeIfMoreThan').value, 10) || DEFAULT_CONFIG.queue0UseFreeIfMoreThan,
-                queue1to7Limit: parseInt(document.getElementById('setting-queue1to7Limit').value, 10) || DEFAULT_CONFIG.queue1to7Limit,
-                queue8plusLimit: parseInt(document.getElementById('setting-queue8plusLimit').value, 10) || DEFAULT_CONFIG.queue8plusLimit
+                reserveForQueue: parseInt(document.getElementById('setting-reserveForQueue').value, 10) || DEFAULT_CONFIG.reserveForQueue,
+                ignoreQueueIfFree: parseInt(document.getElementById('setting-ignoreQueueIfFree').value, 10) || DEFAULT_CONFIG.ignoreQueueIfFree,
+                maxBreakQueue1to5: parseInt(document.getElementById('setting-maxBreakQueue1to5').value, 10) || DEFAULT_CONFIG.maxBreakQueue1to5,
+                maxBreakQueue6to10: parseInt(document.getElementById('setting-maxBreakQueue6to10').value, 10) || DEFAULT_CONFIG.maxBreakQueue6to10,
+                maxBreakQueue10plus: parseInt(document.getElementById('setting-maxBreakQueue10plus').value, 10) || DEFAULT_CONFIG.maxBreakQueue10plus
             };
             CONFIG = newConfig;
             saveConfig();
@@ -488,14 +1000,13 @@
             update();
         });
         document.getElementById('settings-reset').addEventListener('click', () => {
-            console.log('🔄 [BreakAdvisor] Сброс настроек');
             document.getElementById('setting-freeReadyThreshold').value = DEFAULT_CONFIG.freeReadyThreshold;
             document.getElementById('setting-targetGroups').value = DEFAULT_CONFIG.targetGroups.join(', ');
-            document.getElementById('setting-queue0LimitIfFree').value = DEFAULT_CONFIG.queue0LimitIfFree;
-            document.getElementById('setting-queue0LimitNoFree').value = DEFAULT_CONFIG.queue0LimitNoFree;
-            document.getElementById('setting-queue0UseFreeIfMoreThan').value = DEFAULT_CONFIG.queue0UseFreeIfMoreThan;
-            document.getElementById('setting-queue1to7Limit').value = DEFAULT_CONFIG.queue1to7Limit;
-            document.getElementById('setting-queue8plusLimit').value = DEFAULT_CONFIG.queue8plusLimit;
+            document.getElementById('setting-reserveForQueue').value = DEFAULT_CONFIG.reserveForQueue;
+            document.getElementById('setting-ignoreQueueIfFree').value = DEFAULT_CONFIG.ignoreQueueIfFree;
+            document.getElementById('setting-maxBreakQueue1to5').value = DEFAULT_CONFIG.maxBreakQueue1to5;
+            document.getElementById('setting-maxBreakQueue6to10').value = DEFAULT_CONFIG.maxBreakQueue6to10;
+            document.getElementById('setting-maxBreakQueue10plus').value = DEFAULT_CONFIG.maxBreakQueue10plus;
         });
 
         overlay.addEventListener('click', (e) => {
@@ -503,7 +1014,6 @@
         });
 
         function closeModal() {
-            console.log('🔙 [BreakAdvisor] Закрытие модального окна');
             overlay.remove();
             settingsModal = null;
         }
@@ -511,44 +1021,127 @@
 
     // ========== ОБНОВЛЕНИЕ ==========
     function update() {
-        console.log('🔄 [BreakAdvisor] === ЗАПУСК update() ===');
+
+        if (!isTargetPage()) {
+            if (panelWrapper) {
+                panelWrapper.style.display = 'none';
+            }
+            return;
+        }
+
+        const created = createPanel();
+        if (!created) {
+            return;
+        }
+
         const groups = parseData();
         if (!groups) {
-            panel.innerHTML = `<div style="color:${COLORS.error};text-align:center;padding:20px">❌ Таблицы не найдены</div>`;
-            console.error('❌ [BreakAdvisor] parseData вернул null');
+            if (panel) {
+                panel.innerHTML = `<div class="break-error">❌ Таблицы не найдены</div>`;
+            }
             return;
         }
         const analysis = analyze(groups);
         if (analysis) {
             renderPanel(analysis);
-            console.log('✅ [BreakAdvisor] === update() ЗАВЕРШЁН ===');
         } else {
             console.warn('⚠️ [BreakAdvisor] analyze вернул null');
         }
     }
 
+    // ========== НАБЛЮДАТЕЛИ ДЛЯ SPA ==========
+    let observer = null;
+    let urlCheckInterval = null;
+
+    function setupObservers() {
+        if (observer) {
+            observer.disconnect();
+            observer = null;
+        }
+        if (urlCheckInterval) {
+            clearInterval(urlCheckInterval);
+            urlCheckInterval = null;
+        }
+
+        observer = new MutationObserver((mutations) => {
+            let shouldUpdate = false;
+
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length) {
+                    for (const node of mutation.addedNodes) {
+                        if (node.nodeType === 1) {
+                            if (node.querySelector && (
+                                node.querySelector('.grid.gap-4.w-1\\/2') ||
+                                node.querySelector('table._table_g86u9_1')
+                            )) {
+                                shouldUpdate = true;
+                                break;
+                            }
+                            if (node.classList && (
+                                node.classList.contains('grid') ||
+                                node.classList.contains('_table_g86u9_1')
+                            )) {
+                                shouldUpdate = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (mutation.type === 'attributes' && mutation.target === document.body) {
+                    shouldUpdate = true;
+                }
+            }
+
+            if (shouldUpdate) {
+                clearTimeout(window._breakAdvisorUpdateTimeout);
+                window._breakAdvisorUpdateTimeout = setTimeout(() => {
+                    if (isTargetPage()) {
+                        update();
+                    }
+                }, 300);
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class', 'style']
+        });
+
+        let lastUrl = window.location.href;
+        urlCheckInterval = setInterval(() => {
+            const currentUrl = window.location.href;
+            if (currentUrl !== lastUrl) {
+                lastUrl = currentUrl;
+                setTimeout(() => {
+                    if (isTargetPage()) {
+                        update();
+                    } else if (panelWrapper) {
+                        panelWrapper.style.display = 'none';
+                    }
+                }, 500);
+            }
+        }, 500);
+
+
+    }
+
     // ========== ЗАПУСК ==========
-    console.log('⏱️ [BreakAdvisor] Планируем запуск: 5 сек задержка, затем каждые 15 сек');
+
+    addStyles();
+    setupObservers();
+
     setTimeout(() => {
-        console.log('▶️ [BreakAdvisor] Первый запуск');
-        update();
-    }, 5000);
+        if (isTargetPage()) {
+            update();
+        }
+    }, 3000);
 
     setInterval(() => {
-        console.log('🔁 [BreakAdvisor] Плановый запуск');
-        update();
+        if (isTargetPage()) {
+            update();
+        }
     }, UPDATE_INTERVAL);
 
-    // MutationObserver
-    if (typeof MutationObserver !== 'undefined') {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach(m => {
-                if (m.addedNodes.length) {
-                    console.log(`🔍 [BreakAdvisor] DOM изменён: +${m.addedNodes.length} узлов`);
-                }
-            });
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-        console.log('👁️ [BreakAdvisor] MutationObserver подключён');
-    }
 })();
