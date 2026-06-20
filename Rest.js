@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Анализ перерывов новая логика 
 // @namespace    http://tampermonkey.net/
-// @version      5.7
+// @version      5.8
 // @description  Исправлены цвета и убрана лишняя информация
 // @match        https://ai.sknt.ru/monitoring_cc
 // @grant        none
@@ -862,7 +862,7 @@ function renderPanel(analysis) {
             <div class="${cardClass}">
                 <div class="break-card-header">
                     <span class="break-card-name">${name}</span>
-                    <span class="break-card-badge">${rangeText} | 🎯 ${targetText}</span>
+                    <span class="break-card-badge">🎯 ${targetText}</span>
                 </div>
                 <div class="break-stats">
                     <div class="break-stat-item">
