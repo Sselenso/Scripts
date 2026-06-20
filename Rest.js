@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Анализ перерывов новая логика 
 // @namespace    http://tampermonkey.net/
-// @version      5.6
+// @version      5.7
 // @description  Исправлены цвета и убрана лишняя информация
 // @match        https://ai.sknt.ru/monitoring_cc
 // @grant        none
@@ -128,14 +128,12 @@
         }
 
         .break-stat-item {
-            text-align: center;
-            font-size: 12px;
+            text-align: center;            
             color: var(--color-text-secondary, #616161);
         }
 
         .break-stat-value {
-            font-weight: 600;
-            font-size: 14px;
+            font-weight: 600;            
             color: var(--color-text-primary, #212121);
         }
 
