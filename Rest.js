@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Анализ перерывов новая логика
 // @namespace    http://tampermonkey.net/
-// @version      6.1
+// @version      6.3
 // @description  Исправлены цвета и убрана лишняя информация + улучшенный поиск текста
 // @match        https://ai.sknt.ru/monitoring_cc
 // @grant        none
@@ -159,20 +159,21 @@
         }
 
         .break-action-warning {
-            background: #FF9800;
-            color: #F57C00;
-            border: 1px solid #F57C00;
+            background: #FFF3E0;
+    				color: #E65100;
+    				border-color: #FF9800;
         }
 
         .break-action-danger {
-            background: #F44336;
-            color: #D32F2F;
-            border: 1px solid #D32F2F;
+            background: #FFEBEE;
+    				color: #C62828;
+    				border-color: #F44336;
         }
 
         .break-action-text {
             flex: 1;
 						font-weight: 700;
+						border-top: 1px solid transparent;
         }
 
         .break-action-sub {
