@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Анализ перерывов новая логика 
 // @namespace    http://tampermonkey.net/
-// @version      5.5
+// @version      5.6
 // @description  Исправлены цвета и убрана лишняя информация
 // @match        https://ai.sknt.ru/monitoring_cc
 // @grant        none
@@ -32,7 +32,7 @@
 
         .break-panel-header {
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
             align-items: center;
             padding-bottom: 12px;
             border-bottom: 1px solid var(--color-border, #E0E0E0);
@@ -182,10 +182,10 @@
         }
 
         .break-footer {
-            padding: 6px 8px;
+            padding: 6px 14px;
             border-top: 1px solid var(--color-border, #E0E0E0);
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
             color: var(--color-text-secondary, #616161);
             font-size: 13px;
             flex-wrap: wrap;
