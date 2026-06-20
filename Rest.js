@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Анализ перерывов новая логика
 // @namespace    http://tampermonkey.net/
-// @version      6.0
+// @version      6.1
 // @description  Исправлены цвета и убрана лишняя информация + улучшенный поиск текста
 // @match        https://ai.sknt.ru/monitoring_cc
 // @grant        none
@@ -172,6 +172,7 @@
 
         .break-action-text {
             flex: 1;
+						font-weight: 700;
         }
 
         .break-action-sub {
