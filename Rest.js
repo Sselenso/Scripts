@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Анализ перерывов новая логика
 // @namespace    http://tampermonkey.net/
-// @version      6.3
+// @version      6.5
 // @description  Исправлены цвета и убрана лишняя информация + улучшенный поиск текста
 // @match        https://ai.sknt.ru/monitoring_cc
 // @grant        none
@@ -31,10 +31,9 @@
         .break-panel-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--color-border, #E0E0E0);
-            background-color: #58676e !important;
+            align-items: center;            
+            border: 1px solid #58676e;
+            background-color: #58676e !important;						
             padding: 6px 14px;
         }
 
@@ -108,7 +107,7 @@
         }
 
         .break-card-badge {
-            background: #2196F3;
+            background: #35add1;
             color: #fff;
             padding: 4px 12px;
             border-radius: 4px;
@@ -123,6 +122,7 @@
             padding: 8px;
             background: var(--color-bg-secondary, #F5F5F5);
             border-radius: 4px;
+						border: 1px solid var(--color-border, #E0E0E0);
         }
 
         .break-stat-item {
@@ -150,30 +150,30 @@
             padding: 6px 10px;
             border-radius: 4px;
             font-weight: 500;
+						border: 1px solid transparent;
         }
 
         .break-action-optimal {
-            background: #bbf7d0;
-						color: #2E7D32;
-						border-color: #2E7D32;;
+            background: #E8F5E9;
+						color: #38803b;;
+						border-color: #4CAF50;
         }
 
         .break-action-warning {
-            background: #FFF3E0;
+            background: #f9c883;
     				color: #E65100;
     				border-color: #FF9800;
         }
 
         .break-action-danger {
-            background: #FFEBEE;
+            background: #f3a5a5;
     				color: #C62828;
     				border-color: #F44336;
         }
 
         .break-action-text {
             flex: 1;
-						font-weight: 700;
-						border-top: 1px solid transparent;
+						font-weight: 700;						
         }
 
         .break-action-sub {
@@ -182,7 +182,7 @@
         }
 
         .break-footer {
-            padding: 6px 14px;
+            padding: 14px;
             border-top: 1px solid var(--color-border, #E0E0E0);
             display: flex;
             justify-content: space-between;
@@ -884,9 +884,9 @@
         html += `
             <div class="break-footer">
                 <span class="break-footer-item break-footer-free">🟢 Свободен: ${analysis.overall.freeReady}</span>
-                <span class="break-footer-item break-footer-short">🟡 Ожид: ${analysis.overall.freeShort}</span>
-                <span class="break-footer-item break-footer-offline">🔴 Перер: ${analysis.overall.offline}</span>
-                <span class="break-footer-item break-footer-busy">🟠 Разг: ${analysis.overall.busy}</span>
+                <span class="break-footer-item break-footer-short">🟡 Ожидает: ${analysis.overall.freeShort}</span>
+                <span class="break-footer-item break-footer-offline">🔴 В перерыве: ${analysis.overall.offline}</span>
+                <span class="break-footer-item break-footer-busy">🟠 Разговаривает: ${analysis.overall.busy}</span>
                 <span class="break-footer-item break-footer-total">👥 Всего: ${analysis.overall.total}</span>
             </div>
         `;
@@ -915,7 +915,7 @@
                 <div class="break-modal-body">
                     <label>
                         <span class="break-modal-label">Порог "Свободен" (сек):</span>
-                        <span class="break-modal-description">Время, после которого оператор считается готовым к перерыву</span>
+                        <span class="break-modal-description">Время, после которого оператор считается свободным</span>
                         <input type="number" id="setting-freeReadyThreshold" value="${CONFIG.freeReadyThreshold}" class="break-modal-input">
                     </label>
                     <label>
