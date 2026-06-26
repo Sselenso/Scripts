@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Выборка чатов и лк новая
+// @name         Выборка чатов и лк
 // @namespace    http://tampermonkey.net/
-// @version      7.8
+// @version      7.7
 // @description  Filter chats with period-based storage - SPA compatible with fixed cabinet
 // @author       Sselenso
 // @match        https://ai.sknt.ru/*
@@ -12,7 +12,8 @@
 
 (function() {
     'use strict';
-  
+
+    // Проверяем, что мы на правильной странице
     function isTargetPage() {
         const urlParams = new URLSearchParams(window.location.search);
         const isChatsPage = urlParams.get('cat') === 'chats_reports' &&
@@ -22,24 +23,27 @@
 
         return hasTargetClasses || isChatsPage;
     }
-   
+
+    // Получаем дату чата из URL
     function getChatDateFromURL() {
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get('date') || getTodayDate();
     }
- 
+
+    // Ждем загрузки страницы
     let initialized = false;
     let observer = null;
 
     function initializeScript() {
         if (initialized) return;
 
-        if (isTargetPage()) {
+        if (isTargetPage()) {            
             initialized = true;
             initFilterSystem();
         }
     }
-   
+
+    // Создаем наблюдатель за изменениями DOM
     function setupObserver() {
         if (observer) return;
 
@@ -72,7 +76,8 @@
             }
         }, 500);
     }
-    
+
+    // Функция скрытия UI
     function hideFilterUI() {
         const buttonGroup = document.querySelector('.app-button-group');
         if (buttonGroup) buttonGroup.style.display = 'none';
@@ -98,7 +103,8 @@
 
         const STORAGE_KEY = 'chatFilterStates';
         let chatStates = loadChatStates();
-        
+
+        // === ЗАГРУЗКА СТИЛЕЙ ===
         const fontLink = document.createElement('link');
         fontLink.href = 'https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap';
         fontLink.rel = 'stylesheet';
@@ -623,7 +629,7 @@
                 color: var(--c-orange-150);
                 padding: 2px 8px;
                 border-radius: 4px;
-                text-align: center;
+								text-align: center;
             }
 
             .tooltip-status.checked {
@@ -702,43 +708,16 @@
             return new Date().toISOString().split('T')[0];
         }
 
-        // Функция для получения рабочей недели (среда-вторник)
-        function getWorkWeekStart(date) {
-            const d = new Date(date);
-            const day = d.getDay(); // 0=воскресенье, 1=понедельник, ...
-            // Среда = 3, если день меньше 3 (воскр, понед, вторник) - берем предыдущую среду
-            // Если день >= 3 (среда, четверг, пятница, суббота) - берем эту среду
-            let diff;
-            if (day < 3) {
-                // Воскресенье(0), Понедельник(1), Вторник(2) - берем среду на 3 дня назад
-                diff = day - 3;
-            } else {
-                // Среда(3) и далее - берем среду на (day-3) дней назад
-                diff = day - 3;
-            }
-            d.setDate(d.getDate() - diff);
-            d.setHours(0, 0, 0, 0);
-            return d;
-        }
-
-        function getWorkWeekEnd(weekStart) {
-            const d = new Date(weekStart);
-            d.setDate(d.getDate() + 6); // +6 дней = вторник
-            d.setHours(23, 59, 59, 999);
-            return d;
-        }
-
-        // Функция для получения календарной недели (понедельник-воскресенье) для чатов
-        function getCalendarWeekStart(date) {
+        function getWeekStart(date) {
             const d = new Date(date);
             const day = d.getDay();
-            const diff = (day === 0 ? 6 : day - 1); // Если воскресенье (0) -> понедельник на 6 дней назад
+            const diff = (day - 3 + 7) % 7;
             d.setDate(d.getDate() - diff);
             d.setHours(0, 0, 0, 0);
             return d;
         }
 
-        function getCalendarWeekEnd(weekStart) {
+        function getWeekEnd(weekStart) {
             const d = new Date(weekStart);
             d.setDate(d.getDate() + 6);
             d.setHours(23, 59, 59, 999);
@@ -753,10 +732,10 @@
             return `${formatDate(start)} - ${formatDate(end)}`;
         }
 
-        function isDateInPeriod(dateStr, start, end) {
+        function isDateInPeriod(dateStr, weekStart, weekEnd) {
             if (!dateStr) return false;
             const date = new Date(dateStr);
-            return date >= start && date <= end;
+            return date >= weekStart && date <= weekEnd;
         }
 
         // === РАБОТА С ХРАНИЛИЩЕМ ===
@@ -767,12 +746,19 @@
 
                 const allStates = JSON.parse(data);
                 const today = new Date();
-                const workWeekStart = getWorkWeekStart(today);
-                const workWeekEnd = getWorkWeekEnd(workWeekStart);
+                const weekStart = getWeekStart(today);
+                const weekEnd = getWeekEnd(weekStart);
 
-                // Для ЛК загружаем ВСЕ состояния, но при отображении фильтруем по дате проверки
-                // Для фильтра чатов загружаем все состояния
-                return allStates;
+                const periodStates = {};
+
+                for (const [chatId, record] of Object.entries(allStates)) {
+                    if (record && record.chatDate && isDateInPeriod(record.chatDate, weekStart, weekEnd)) {
+                        if (record.status && record.status !== 'none') {
+                            periodStates[chatId] = record;
+                        }
+                    }
+                }                
+                return periodStates;
             } catch (e) {
                 console.warn('Ошибка загрузки:', e);
                 return {};
@@ -791,7 +777,7 @@
                     } else {
                         allStates[chatId] = {
                             status: record.status,
-                            checkedDate: record.checkedDate || today, // ДАТА ПРОВЕРКИ!
+                            checkedDate: record.checkedDate || today,
                             chatDate: record.chatDate || today,
                             specialist: record.specialist || 'Неизвестный',
                             rating: record.rating || null,
@@ -807,7 +793,7 @@
                     }
                 }
 
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(allStates));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(allStates));                
             } catch (e) {
                 console.warn('Не удалось сохранить состояние:', e);
             }
@@ -816,23 +802,8 @@
         // === ОЧИСТКА ДАННЫХ ===
         function clearAllData() {
             if (confirm('Вы уверены, что хотите очистить все данные о проверках за текущий период?')) {
-                const today = new Date();
-                const workWeekStart = getWorkWeekStart(today);
-                const workWeekEnd = getWorkWeekEnd(workWeekStart);
-
-                const allData = localStorage.getItem(STORAGE_KEY);
-                if (allData) {
-                    const allStates = JSON.parse(allData);
-                    // Удаляем только записи за текущую рабочую неделю
-                    for (const [chatId, record] of Object.entries(allStates)) {
-                        if (record && record.checkedDate && isDateInPeriod(record.checkedDate, workWeekStart, workWeekEnd)) {
-                            delete allStates[chatId];
-                        }
-                    }
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(allStates));
-                }
-
-                chatStates = loadChatStates();
+                localStorage.removeItem(STORAGE_KEY);
+                chatStates = {};                
                 const cabinetModal = document.querySelector('.app-modal .app-header-cabinet');
                 if (cabinetModal) {
                     const modal = cabinetModal.closest('.app-modal');
@@ -850,18 +821,18 @@
             const chatDate = getChatDateFromURL();
 
             if (current === status) {
-                delete chatStates[chatId];
+                delete chatStates[chatId];                
             } else {
                 const chatData = CACHE.chatData.get(chatId);
                 chatStates[chatId] = {
                     status: status,
-                    checkedDate: getTodayDate(), // ДАТА ПРОВЕРКИ - сегодня!
+                    checkedDate: getTodayDate(),
                     chatDate: chatDate,
                     specialist: chatData?.specialists?.[0] || 'Неизвестный',
                     rating: chatData?.rating || null,
                     problem: chatData?.problem || '',
                     tags: chatData?.tags || ''
-                };
+                };                
             }
 
             saveChatStates(chatStates);
@@ -1276,35 +1247,28 @@
             resultsList._clickHandler = handler;
         }
 
-        // === ЛИЧНЫЙ КАБИНЕТ (СТАТИСТИКА ПО ДАТЕ ПРОВЕРКИ) ===
+        // === ЛИЧНЫЙ КАБИНЕТ (ЧИТАЕТ ТОЛЬКО ИЗ localStorage) ===
         function openCabinet() {
             const today = new Date();
-            const workWeekStart = getWorkWeekStart(today);
-            const workWeekEnd = getWorkWeekEnd(workWeekStart);
-            const periodStr = formatPeriod(workWeekStart, workWeekEnd);
+            const weekStart = getWeekStart(today);
+            const weekEnd = getWeekEnd(weekStart);
+            const periodStr = formatPeriod(weekStart, weekEnd);
 
             const allStates = loadChatStates();
-
-            // Фильтруем только те записи, которые были проверены в текущую рабочую неделю
-            const periodStates = {};
-            for (const [chatId, record] of Object.entries(allStates)) {
-                if (record && record.checkedDate && isDateInPeriod(record.checkedDate, workWeekStart, workWeekEnd)) {
-                    periodStates[chatId] = record;
-                }
-            }
 
             const specialistsData = {};
             let totalChecked = 0;
             let totalRejected = 0;
 
-            if (Object.keys(periodStates).length === 0) {
+            if (Object.keys(allStates).length === 0) {
                 showEmptyCabinet(periodStr);
                 return;
             }
 
             // Собираем данные по специалистам с деталями для тултипа
-            for (const [chatId, record] of Object.entries(periodStates)) {
-                if (!record) continue;
+            for (const [chatId, record] of Object.entries(allStates)) {
+                if (!record || !record.chatDate) continue;
+                if (!isDateInPeriod(record.chatDate, weekStart, weekEnd)) continue;
 
                 const specialist = record.specialist || 'Неизвестный';
                 const state = record.status || 'none';
@@ -1321,11 +1285,10 @@
 
                 specialistsData[specialist].chats.push({
                     id: chatId,
-                    date: record.chatDate || record.checkedDate,
+                    date: record.chatDate,
                     status: state,
                     rating: rating,
-                    problem: record.problem || '',
-                    checkedDate: record.checkedDate // Дата проверки
+                    problem: record.problem || ''
                 });
 
                 if (state === 'checked') {
@@ -1345,18 +1308,18 @@
             // Создаем HTML
             let html = `
                 <div class="cabinet-period">
-                    <span>📅 Период проверок: <strong>${periodStr}</strong> (среда - вторник)</span>
+                    <span>📅 Период: <strong>${periodStr}</strong> (среда - вторник)</span>
                     <span style="font-size: 14px; color: var(--app-text-secondary);">
                         ✅ Всего проверено: <strong style="color: var(--app-primary);">${totalChecked}</strong> |
                         🗑 Отклонено: <strong style="color: #d9534f;">${totalRejected}</strong>
                     </span>
-                </div>                
+                </div>
             `;
 
             if (Object.keys(specialistsData).length === 0) {
                 html += `
                     <div class="cabinet-empty">
-                        📭 Нет проверок за текущий период<br>
+                        📭 Нет данных за текущий период<br>
                         <span style="font-size:13px;color:var(--app-text-secondary);">
                             Начните проверять чаты, и статистика появится здесь
                         </span>
@@ -1376,21 +1339,18 @@
                         tooltipHtml = `
                             <div class="cabinet-tooltip-title">📋 Детальная информация</div>
                         `;
-                        // Сортируем чаты по дате проверки (новые сверху)
-                        const sortedChats = data.chats.sort((a, b) => b.checkedDate.localeCompare(a.checkedDate));
+                        // Сортируем чаты по дате (новые сверху)
+                        const sortedChats = data.chats.sort((a, b) => b.date.localeCompare(a.date));
                         for (const chat of sortedChats) {
                             const statusLabel = chat.status === 'checked' ? '✅ Проверен' :
                                                chat.status === 'rejected' ? '🗑 Отклонен' : '❓ Не отмечен';
                             const statusClass = chat.status === 'checked' ? 'checked' :
                                                chat.status === 'rejected' ? 'rejected' : 'none';
                             const ratingDisplay = chat.rating ? '★'.repeat(chat.rating) : '—';
-                            const chatDateStr = chat.date ? formatDate(new Date(chat.date)) : '—';
-                            const checkedDateStr = chat.checkedDate ? formatDate(new Date(chat.checkedDate)) : '—';
                             tooltipHtml += `
                                 <div class="cabinet-tooltip-item">
                                     <span class="tooltip-chat">Чат #${chat.id}</span>
-                                    <span class="tooltip-date">📅 чат: ${chatDateStr}</span>
-                                    <span class="tooltip-date">✅ проверка: ${checkedDateStr}</span>
+                                    <span class="tooltip-date">📅 ${formatDate(new Date(chat.date))}</span>
                                     <span class="tooltip-status ${statusClass}">${statusLabel}</span>
                                     <span class="tooltip-rating">${ratingDisplay}</span>
                                 </div>
@@ -1483,7 +1443,7 @@
 
             document.body.appendChild(cabinetModal);
             lockScroll();
-
+            
             setTimeout(() => {
                 const detailButtons = cabinetModal.querySelectorAll('.app-btn-details');
                 detailButtons.forEach(btn => {
@@ -1550,10 +1510,10 @@
                     </div>
                     <div class="app-body">
                         <div class="cabinet-period">
-                            📅 Период проверок: <strong>${periodStr}</strong> (среда - вторник)
+                            📅 Период: <strong>${periodStr}</strong> (среда - вторник)
                         </div>
                         <div class="cabinet-empty">
-                            📭 Нет проверок за текущий период<br>
+                            📭 Нет данных за текущий период<br>
                             <span style="font-size:13px;color:var(--app-text-secondary);">
                                 Начните проверять чаты, и статистика появится здесь
                             </span>
@@ -1698,7 +1658,7 @@
             modal.style.display = 'flex';
             lockScroll();
 
-            chatStates = loadChatStates();
+            chatStates = loadChatStates();            
 
             CACHE.rows = null;
             CACHE.chatData.clear();
@@ -1714,7 +1674,8 @@
             unlockScroll();
             isModalOpen = false;
         }
-       
+
+        // === ОБРАБОТЧИКИ СОБЫТИЙ ===
         filterButton.addEventListener('click', openFilter);
         cabinetButton.addEventListener('click', openCabinet);
 
@@ -1739,7 +1700,8 @@
             CACHE.currentHash = '';
             CACHE.currentChats = [];
         });
-      
+
+        // Оптимизированные обработчики
         let filterTimer = null;
         const handleFilterChange = () => {
             clearTimeout(filterTimer);
@@ -1765,13 +1727,15 @@
             radio.addEventListener('change', handleFilterChange);
         });
         document.getElementById('problemFilter').addEventListener('change', handleFilterChange);
-        
-        chatStates = loadChatStates();
-			    }
 
-   
+        // === ИНИЦИАЛИЗАЦИЯ ===
+        chatStates = loadChatStates();        
+    }
+
+    // Запускаем наблюдатель
     setupObserver();
-   
+
+    // Первоначальная проверка
     setTimeout(initializeScript, 500);
 
 })();
